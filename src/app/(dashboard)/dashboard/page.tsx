@@ -53,6 +53,7 @@ import { useState } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 
 interface TransactionChartData {
 	month: string
@@ -157,10 +158,11 @@ function RecommendedBooks({
 							</div>
 							<div className="relative w-full aspect-[2/3] mb-2 overflow-hidden rounded-md shadow-md transition-all duration-300 group-hover:shadow-lg">
 								{book.coverUrl ? (
-									<img
+									<Image
 										src={book.coverUrl}
 										alt={book.title}
-										className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105"
+										fill
+										className="object-cover transition-transform duration-300 group-hover:scale-105"
 									/>
 								) : (
 									<div className="flex items-center justify-center w-full h-full bg-muted">

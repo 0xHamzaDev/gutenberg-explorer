@@ -64,7 +64,7 @@ const getRecommendationsCached = unstable_cache(
 		keywords: string[],
 		readBookIds: Set<string>
 	): Promise<BookData[]> => {
-		let allBooks: BookData[] = []
+		const allBooks: BookData[] = []
 		const usedIds = new Set<string>()
 
 		const topicPromises = topics.slice(0, 3).map(subject =>
@@ -170,12 +170,12 @@ export async function GET() {
 		).size
 
 		let totalMessages = 0
-		let messagesByBook: Record<string, number> = {}
+		const messagesByBook = new Map<string, number>()
 		let userMessageCount = 0
 		let botMessageCount = 0
 
-		let messageContents: string[] = []
-		let interestKeywords: Record<string, number> = {}
+		const messageContents: string[] = []
+		const interestKeywords: { [key: string]: number } = {}
 
 		for (const transaction of transactions) {
 			const messages = transaction.messages || []
@@ -214,7 +214,7 @@ export async function GET() {
 			}
 
 			if (bookMessageCount > 0) {
-				messagesByBook[transaction.bookId] = bookMessageCount
+				messagesByBook.set(transaction.bookId, bookMessageCount)
 			}
 		}
 
@@ -245,6 +245,7 @@ export async function GET() {
 			.map(([keyword]) => keyword)
 
 		let allBooks: BookData[] = []
+		const usedIds = new Set<string>()
 		try {
 			const defaultLiterarySubjects = [
 				'fiction',
@@ -361,7 +362,7 @@ export async function GET() {
 			Math.min(10, recommendationSubjects.length)
 		)
 
-		const booksWithMessages = Object.keys(messagesByBook).length
+		const booksWithMessages = messagesByBook.size
 		const averageMessagesPerBook =
 			booksWithMessages > 0
 				? Math.round((totalMessages / booksWithMessages) * 10) / 10
@@ -456,7 +457,7 @@ export async function GET() {
 			calendarData.push({ day, value })
 		})
 
-		let currentDate = new Date(oneYearAgo)
+		const currentDate = new Date()
 		while (currentDate <= now) {
 			const formattedDate = currentDate.toISOString().split('T')[0]
 			if (!dateCountMap[formattedDate]) {

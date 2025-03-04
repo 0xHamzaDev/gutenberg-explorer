@@ -89,7 +89,6 @@ function AIChatSkeleton() {
 	return (
 		<div className="container mx-auto py-1 px-4 md:px-6 h-[calc(100vh-4rem)] max-h-screen flex flex-col">
 			<div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4 h-full overflow-hidden flex-grow">
-				{/* Book info skeleton */}
 				<div className="order-2 lg:order-1 h-full flex max-h-[calc(100vh-6rem)]">
 					<Card className="shadow-sm w-full flex flex-col">
 						<CardHeader className="pb-3 shrink-0">
@@ -116,7 +115,6 @@ function AIChatSkeleton() {
 					</Card>
 				</div>
 
-				{/* Chat skeleton */}
 				<div className="order-1 lg:order-2 h-full flex max-h-[calc(100vh-6rem)]">
 					<Card className="shadow-sm w-full flex flex-col">
 						<CardHeader className="pb-3 border-b shrink-0">
@@ -367,7 +365,6 @@ export default function ChatPage(): JSX.Element {
 		<div className="container mx-auto py-1 px-4 md:px-6 h-[calc(100vh-4rem)] max-h-screen flex flex-col">
 
 			<div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4 h-full overflow-hidden flex-grow">
-				{/* Book info card */}
 				<div className="order-2 lg:order-1 h-full flex max-h-[calc(100vh-6rem)]">
 					<Card className="shadow-sm w-full flex flex-col overflow-hidden">
 						<CardHeader className="pb-3 shrink-0">
@@ -455,7 +452,6 @@ export default function ChatPage(): JSX.Element {
 					</Card>
 				</div>
 
-				{/* Chat area */}
 				<div className="order-1 lg:order-2 h-full flex max-h-[calc(100vh-6rem)]">
 					<Card className="shadow-sm w-full flex flex-col">
 						<CardHeader className="pb-3 border-b shrink-0">

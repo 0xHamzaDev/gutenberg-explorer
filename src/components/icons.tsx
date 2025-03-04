@@ -311,11 +311,9 @@ export const Icons = {
 			strokeLinecap="round"
 			strokeLinejoin="round"
 		>
-			{/* Open book base */}
 			<path d="M12 6c0 0-3-2-6-2S2 6 2 6v14c0 0 3-2 6-2s6 2 6 2" />
 			<path d="M12 6c0 0 3-2 6-2s4 2 4 2v14c0 0-3-2-6-2s-4 1-4 2" />
 
-			{/* Book pages with text lines */}
 			<path d="M5 9h2" />
 			<path d="M5 12h3" />
 			<path d="M5 15h2" />
@@ -324,7 +322,6 @@ export const Icons = {
 			<path d="M16 12h3" />
 			<path d="M17 15h2" />
 
-			{/* Printing press element on top */}
 			<rect x="8" y="2" width="8" height="2" rx="1" />
 			<path d="M12 4v2" />
 		</svg>

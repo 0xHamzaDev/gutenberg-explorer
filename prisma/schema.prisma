@@ -32,6 +32,7 @@ model UserLibrary {
     bookId     String
     bookCover  String?
     bookAuthor String?
+    favorite   Boolean  @default(false)
 
     createdAt DateTime @default(now())
     updatedAt DateTime @default(now()) @updatedAt

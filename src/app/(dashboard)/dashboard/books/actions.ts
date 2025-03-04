@@ -4,6 +4,7 @@ import { clerkClient, auth } from '@clerk/nextjs/server'
 import prisma from '@/lib/db'
 import { z } from 'zod'
 import { unstable_cache } from 'next/cache'
+import { revalidateLibrary } from '@/app/(dashboard)/dashboard/library/actions'
 
 const BookSchema = z.object({
 	id: z.number(),
@@ -280,6 +281,9 @@ export async function removeBookFromLibrary(bookId: number): Promise<boolean> {
 				id: existingEntry.id
 			}
 		})
+
+		// Revalidate the library cache
+		await revalidateLibrary(userId)
 
 		return Boolean(result)
 	} catch (error) {

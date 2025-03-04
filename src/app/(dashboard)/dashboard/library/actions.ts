@@ -53,8 +53,20 @@ export const getBookTransactionDataById = unstable_cache(
 	{ revalidate: 60 }
 )
 
+export interface LibraryBook {
+	id: string
+	userId: string
+	bookTitle: string
+	bookId: string
+	bookCover: string | null
+	bookAuthor: string | null
+	createdAt: Date
+	updatedAt: Date
+	favorite: boolean
+}
+
 export const getUserLibraryData = unstable_cache(
-	async (userId: string) => {
+	async (userId: string): Promise<LibraryBook[]> => {
 		if (!userId) {
 			throw new Error('User ID is null')
 		}
@@ -63,16 +75,19 @@ export const getUserLibraryData = unstable_cache(
 			where: {
 				userId: userId
 			},
-			orderBy: {
-				updatedAt: 'desc'
-			}
+			orderBy: [{ favorite: 'desc' }, { updatedAt: 'desc' }]
 		})
 
 		return library
 	},
 	['user-library'],
-	{ revalidate: 60 }
+	{ revalidate: 1 }
 )
+
+export async function revalidateLibrary(userId: string) {
+	'use server'
+	await getUserLibraryData.revalidate(userId)
+}
 
 export async function getUserLibrary() {
 	const { userId } = await auth()
@@ -80,7 +95,8 @@ export async function getUserLibrary() {
 		throw new Error('User ID is null')
 	}
 
-	return getUserLibraryData(userId)
+	const data = await getUserLibraryData(userId)
+	return data
 }
 
 const MAX_SUMMARY_LENGTH = 10000
@@ -173,5 +189,38 @@ export const getAIResponse = async (
 		)
 	} catch (error) {
 		return "I'm sorry, I couldn't analyze this book content at the moment. Please try again later."
+	}
+}
+
+export async function toggleBookFavorite(bookId: string): Promise<boolean> {
+	try {
+		const { userId } = await auth()
+		if (!userId) {
+			return false
+		}
+
+		const book = await prisma.userLibrary.findFirst({
+			where: {
+				userId,
+				bookId
+			}
+		})
+
+		if (!book) {
+			return false
+		}
+
+		await prisma.userLibrary.update({
+			where: {
+				id: book.id
+			},
+			data: {
+				favorite: !book.favorite
+			}
+		})
+
+		return true
+	} catch (error) {
+		return false
 	}
 }

@@ -10,23 +10,24 @@
 
 ## Features
 
-- **Explore Books**: Browse through Project Gutenberg’s collection of e-books.
-- **Download Books**: Download e-books to read offline in various formats.
-- **Text Analysis**: Analyze book content with features such as:
-    - **Character Identification**: Detect key characters in the story.
-    - **Language Detection**: Identify the language of the text.
-    - **Sentiment Analysis**: Gauge the sentiment of the text (positive, neutral, or negative).
-    - **Plot Summaries**: Get automatic summaries of books’ plots.
+-   **Explore Books**: Browse through Project Gutenberg’s collection of e-books.
+-   **Download Books**: Download e-books to read offline in various formats.
+-   **Book Recommendation**: Book recommendation based on your previous books
+-   **Text Analysis**: Analyze book content with features such as:
+    -   **Character Identification**: Detect key characters in the story.
+    -   **Language Detection**: Identify the language of the text.
+    -   **Sentiment Analysis**: Gauge the sentiment of the text (positive, neutral, or negative).
+    -   **Plot Summaries**: Get automatic summaries of books’ plots.
 
 ---
 
 ## Tech Stack
 
-- **Frontend**: Next.js, TailwindCSS, Shadcn UI
-- **Backend**: Node.js (for book metadata fetching)
-- **AI**: Open AI for AI-driven features (text analysis, summarization)
-- **Database**: Prisma (for storing book metadata and user preferences)
-- **Deployment**: Vercel, Docker
+-   **Frontend**: Next.js, TailwindCSS, Shadcn UI
+-   **Backend**: Next.js, Zod for schema validation
+-   **AI**: Open AI for AI-driven features (text analysis, summarization)
+-   **Database**: Prisma PostgreSQL (for storing book metadata and user preferences)
+-   **Deployment**: Vercel, Docker
 
 ---
 
@@ -36,9 +37,9 @@ To get started with the development version of Gutenberg Explorer, clone the rep
 
 ### Prerequisites
 
-- Node.js
-- npm or yarn
-- Docker (for containerized environments)
+-   Node.js
+-   npm or yarn
+-   Docker (for containerized environments)
 
 ### Steps
 
@@ -84,9 +85,8 @@ To get started with the development version of Gutenberg Explorer, clone the rep
 
 ## Usage
 
-- **Explore Books**: You can search for books by title, author, or genre. The platform will provide you with a list of available books to explore.
-- **Download Books**: After finding a book, you can download it in various formats (ePub, HTML, plain text).
-- **Analyze Text**: Once you've selected a book, you can analyze its content for sentiment, characters, and plot summaries using the AI-driven features.
+-   **Explore Books**: You can search for books by title, author, or genre. The platform will provide you with a list of available books to explore.
+-   **Analyze Text**: Once you've selected a book, you can analyze its content for sentiment, characters, and plot summaries using the AI-driven features.
 
 ---
 

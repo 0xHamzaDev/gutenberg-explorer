@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/card'
 import { useState, useRef, useEffect } from 'react'
 import { fetchBooks } from '@/app/(dashboard)/dashboard/books/actions'
-import { Search, Sparkles, Book, BookOpen } from 'lucide-react'
+import { Search, Sparkles, Book, BookOpen, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useRouter } from 'next/navigation'
@@ -30,6 +30,21 @@ interface Recommendation {
 	author: string | null
 	coverUrl: string | null
 	relevanceScore: number
+}
+
+interface ReadingStats {
+	recommendations: Recommendation[]
+	topSubjects: string[]
+	totalBooks: number
+	recentActivity: {
+		id: string
+		bookId: string
+		title: string
+		author: string | null
+		date: string
+		messageCount: number
+		transactionId?: string
+	}[]
 }
 
 function useDebounce<T>(value: T, delay: number): T {
@@ -60,10 +75,7 @@ export default function BooksPage(): JSX.Element {
 	const debouncedQuery = useDebounce(searchQuery, 300)
 
 	const { data: recommendationsData, isLoading: recommendationsLoading } =
-		useSWR<{
-			recommendations: Recommendation[]
-			topSubjects: string[]
-		}>(
+		useSWR<ReadingStats>(
 			'/dashboard/stats',
 			async url => {
 				const response = await fetch(url)
@@ -73,7 +85,9 @@ export default function BooksPage(): JSX.Element {
 				const data = await response.json()
 				return {
 					recommendations: data.recommendations || [],
-					topSubjects: data.topSubjects || []
+					topSubjects: data.topSubjects || [],
+					totalBooks: data.totalBooks || 0,
+					recentActivity: data.recentActivity || []
 				}
 			},
 			{ revalidateOnFocus: false }
@@ -161,7 +175,9 @@ export default function BooksPage(): JSX.Element {
 
 		if (
 			!recommendationsData?.recommendations ||
-			recommendationsData.recommendations.length === 0
+			recommendationsData.recommendations.length === 0 ||
+			!recommendationsData.totalBooks ||
+			recommendationsData.totalBooks <= 2
 		) {
 			return null
 		}
@@ -202,12 +218,12 @@ export default function BooksPage(): JSX.Element {
 
 				<div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6">
 					{recommendationsData.recommendations.map(book => (
-						<Card
+						<div
 							key={book.id}
 							onClick={() =>
 								router.push(`/dashboard/books/${book.id}`)
 							}
-							className="overflow-hidden hover:shadow-lg transition-all duration-300 transform w-full hover:scale-105 cursor-pointer relative group"
+							className="flex flex-col items-center cursor-pointer group relative"
 						>
 							<div className="absolute top-2 right-2 bg-primary/90 text-white text-xs font-semibold px-2 py-1 rounded-full z-10 opacity-0 group-hover:opacity-100 transition-opacity">
 								{Math.min(
@@ -216,49 +232,33 @@ export default function BooksPage(): JSX.Element {
 								)}
 								% match
 							</div>
-							<CardContent className="p-0 relative">
-								<div className="aspect-w-2 aspect-h-3 relative">
-									{book.coverUrl ? (
-										<Image
-											src={book.coverUrl}
-											alt={`Cover of ${book.title}`}
-											width={250}
-											height={375}
-											sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, (max-width: 1280px) 20vw, 16vw"
-											className="object-cover rounded-t-lg"
-										/>
-									) : (
-										<div className="w-full h-full flex items-center justify-center bg-muted rounded-t-lg">
-											<Book className="h-12 w-12 text-muted-foreground" />
-										</div>
-									)}
-								</div>
-								<div className="p-4">
-									<h4 className="font-semibold line-clamp-1 text-sm">
+							<div className="relative w-full aspect-[2/3] mb-2 overflow-hidden rounded-md shadow-md transition-all duration-300 group-hover:shadow-lg">
+								{book.coverUrl ? (
+									<Image
+										src={book.coverUrl}
+										alt={`Cover of ${book.title}`}
+										width={250}
+										height={375}
+										sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, (max-width: 1280px) 20vw, 16vw"
+										className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105"
+									/>
+								) : (
+									<div className="flex items-center justify-center w-full h-full bg-muted">
+										<Book className="h-12 w-12 text-muted-foreground" />
+									</div>
+								)}
+								<div className="absolute bottom-0 left-0 right-0 px-2 py-1 bg-background/70 backdrop-blur-sm">
+									<p className="text-xs font-medium truncate">
 										{book.title}
-									</h4>
-									<p className="text-xs text-muted-foreground mt-1">
-										{book.author || 'Unknown'}
 									</p>
 								</div>
-							</CardContent>
-						</Card>
+							</div>
+							<p className="text-xs text-center text-muted-foreground truncate w-full">
+								{book.author || 'Unknown Author'}
+							</p>
+						</div>
 					))}
 				</div>
-
-				{recommendationsData.recommendations.length === 0 && (
-					<div className="flex flex-col items-center justify-center p-8 bg-muted/20 rounded-lg">
-						<BookOpen className="h-10 w-10 text-muted-foreground mb-3" />
-						<h4 className="text-lg font-medium mb-1">
-							No recommendations yet
-						</h4>
-						<p className="text-sm text-center text-muted-foreground max-w-md">
-							Continue reading books and engaging with them to get
-							personalized recommendations based on your
-							interests.
-						</p>
-					</div>
-				)}
 			</div>
 		)
 	}
@@ -268,40 +268,46 @@ export default function BooksPage(): JSX.Element {
 			<div className="flex items-center justify-between mb-8">
 				<h2 className="text-3xl font-bold">Explore Books</h2>
 				<div className="relative flex items-center">
-					<button
-						onClick={handleSearchIconClick}
-						className="p-2 rounded-full hover:bg-gray-100 focus:outline-none"
-						aria-label="Toggle search"
-					>
-						<Search className="h-5 w-5 text-gray-400" />
-					</button>
-					<div
-						className={`absolute right-0 transition-all duration-300 ease-in-out ${
-							isSearchVisible
-								? 'w-64 opacity-100'
-								: 'w-0 opacity-0'
-						} overflow-hidden`}
-					>
+					<div className={cn(
+						"flex items-center bg-background rounded-full border px-3 py-2 w-64 transition-all duration-300",
+						isSearchVisible ? "ring-1 ring-ring" : ""
+					)}>
+						<Search className="h-4 w-4 text-muted-foreground shrink-0" />
 						<input
 							ref={searchInputRef}
 							value={searchQuery}
 							onChange={e => setSearchQuery(e.target.value)}
 							onFocus={() => setIsSearchVisible(true)}
+							onBlur={() => {
+								if (!searchQuery) {
+									setIsSearchVisible(false)
+								}
+							}}
 							placeholder="Search for a book..."
-							className={cn(
-								'flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm',
-								'pl-3 pr-10 py-2 w-full rounded-full transition-all duration-300 bg-background'
-							)}
+							className="flex-1 bg-transparent border-0 outline-none focus:outline-none focus:ring-0 text-sm ml-2 placeholder:text-muted-foreground"
 						/>
+						{searchQuery && (
+							<button
+								onClick={() => {
+									setSearchQuery('')
+									setIsSearchVisible(false)
+									searchInputRef.current?.blur()
+								}}
+								className="p-1 hover:bg-muted rounded-full"
+							>
+								<X className="h-3 w-3 text-muted-foreground" />
+							</button>
+						)}
 					</div>
 				</div>
 			</div>
 
-			{/* Add the recommendations section */}
-			<RecommendedBooks />
+			{!searchQuery && <RecommendedBooks />}
 
 			<div className="mb-6">
-				<h3 className="text-xl font-semibold mb-4">All Books</h3>
+				<h3 className="text-xl font-semibold mb-4">
+					{searchQuery ? `Search Results for "${searchQuery}"` : "All Books"}
+				</h3>
 			</div>
 
 			<div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6">
@@ -310,35 +316,39 @@ export default function BooksPage(): JSX.Element {
 							<BookSkeleton key={index} />
 						))
 					: allBooks?.map(book => (
-							<Card
+							<div
 								key={book.id}
 								onClick={() =>
 									handleBookClick(book.id.toString())
 								}
-								className="overflow-hidden hover:shadow-lg transition-all duration-300 transform w-full hover:scale-105 cursor-pointer"
+								className="flex flex-col items-center cursor-pointer group relative"
 							>
-								<CardContent className="p-0 relative">
-									<div className="aspect-w-2 aspect-h-3 relative">
+								<div className="relative w-full aspect-[2/3] mb-2 overflow-hidden rounded-md shadow-md transition-all duration-300 group-hover:shadow-lg">
+									{book.coverUrl ? (
 										<Image
 											src={book.coverUrl}
 											alt={`Cover of ${book.title}`}
 											width={250}
-											height={250}
+											height={375}
 											sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, (max-width: 1280px) 20vw, 16vw"
-											className="object-cover rounded-t-lg"
+											className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105"
 										/>
-									</div>
-									<div className="p-4">
-										<h4 className="font-semibold line-clamp-1 text-sm">
+									) : (
+										<div className="flex items-center justify-center w-full h-full bg-muted">
+											<Book className="h-12 w-12 text-muted-foreground" />
+										</div>
+									)}
+									<div className="absolute bottom-0 left-0 right-0 px-2 py-1 bg-background/70 backdrop-blur-sm">
+										<p className="text-xs font-medium truncate">
 											{book.title}
-										</h4>
-										<p className="text-xs text-muted-foreground mt-1">
-											{book.author}
 										</p>
 									</div>
-								</CardContent>
-							</Card>
-						))}
+								</div>
+								<p className="text-xs text-center text-muted-foreground truncate w-full">
+									{book.author || 'Unknown Author'}
+								</p>
+							</div>
+					))}
 			</div>
 
 			{allBooks?.length === 0 && !isLoading && (

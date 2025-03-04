@@ -18,7 +18,6 @@ export async function GET(
 
 		const transactionId = params.transactionId
 
-		// Fetch the transaction
 		const transaction = await prisma.transactions.findFirst({
 			where: {
 				id: transactionId,
@@ -33,7 +32,6 @@ export async function GET(
 			)
 		}
 
-		// Return transaction details
 		return NextResponse.json({
 			id: transaction.id,
 			bookId: transaction.bookId,

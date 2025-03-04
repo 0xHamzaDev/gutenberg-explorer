@@ -162,7 +162,14 @@ function RecommendedBooks({
 										src={book.coverUrl}
 										alt={book.title}
 										fill
+										sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 16vw"
+										loading="lazy"
+										quality={75}
 										className="object-cover transition-transform duration-300 group-hover:scale-105"
+										onError={(e) => {
+											const target = e.target as HTMLImageElement;
+											target.src = '/placeholder-book.jpg';
+										}}
 									/>
 								) : (
 									<div className="flex items-center justify-center w-full h-full bg-muted">

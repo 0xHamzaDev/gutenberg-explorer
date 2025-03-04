@@ -19,6 +19,9 @@ interface RecommendationData {
 	relevanceScore: number
 }
 
+const CACHE_DURATION = 3600 * 1000 // 1 hour
+const apiCache = new Map<string, { data: any; timestamp: number }>()
+
 async function fetchBooksFromGutenberg(
 	query: string = '',
 	page: number = 1,
@@ -27,6 +30,12 @@ async function fetchBooksFromGutenberg(
 ): Promise<any[]> {
 	try {
 		let apiUrl = `https://gutendex.com/books?`
+		const cacheKey = `${query}-${page}-${limit}-${topic}`
+
+		const cached = apiCache.get(cacheKey)
+		if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+			return cached.data
+		}
 
 		if (topic && topic.trim() !== '') {
 			apiUrl += `topic=${encodeURIComponent(topic)}&`
@@ -38,105 +47,92 @@ async function fetchBooksFromGutenberg(
 
 		apiUrl += `page=${page}`
 
-		const response = await fetch(apiUrl)
+		const controller = new AbortController()
+		const timeoutId = setTimeout(() => controller.abort(), 5000) // 5s timeout
+
+		const response = await fetch(apiUrl, {
+			signal: controller.signal,
+			headers: {
+				'Accept-Encoding': 'gzip'
+			}
+		})
+
+		clearTimeout(timeoutId)
+
 		if (!response.ok) {
 			throw new Error(`Failed to fetch books: ${response.statusText}`)
 		}
 
 		const data = await response.json()
+		const results = (data.results || [])
+			.slice(0, limit)
+			.map((book: any) => ({
+				id: book.id.toString(),
+				title: book.title,
+				author: book.authors?.[0]?.name || null,
+				coverUrl: book.formats?.['image/jpeg'] || null,
+				subjects: book.subjects || []
+			}))
 
-		return (data.results || []).slice(0, limit).map((book: any) => ({
-			id: book.id.toString(),
-			title: book.title,
-			author: book.authors?.[0]?.name || null,
-			coverUrl: book.formats?.['image/jpeg'] || null,
-			subjects: book.subjects || []
-		}))
+		apiCache.set(cacheKey, { data: results, timestamp: Date.now() })
+
+		return results
 	} catch (error) {
 		console.error('Error fetching books from Gutenberg:', error)
 		return []
 	}
 }
 
-const getRecommendationsCached = unstable_cache(
-	async (
-		topics: string[],
-		keywords: string[],
-		readBookIds: Set<string>
-	): Promise<BookData[]> => {
-		const allBooks: BookData[] = []
-		const usedIds = new Set<string>()
+async function getRecommendationsCached(
+	topics: string[],
+	keywords: string[],
+	readBookIds: Set<string>
+): Promise<BookData[]> {
+	const allBooks: BookData[] = []
+	const usedIds = new Set<string>()
+	const batchSize = 3
 
-		const topicPromises = topics.slice(0, 3).map(subject =>
+	for (let i = 0; i < topics.length; i += batchSize) {
+		const batch = topics.slice(i, i + batchSize)
+		const promises = batch.map(subject =>
 			fetchBooksFromGutenberg('', 1, 12, subject)
-				.then(books => {
-					books.forEach(book => {
-						if (
-							!usedIds.has(book.id) &&
-							!readBookIds.has(book.id)
-						) {
-							usedIds.add(book.id)
-							allBooks.push(book)
-						}
-					})
-				})
-				.catch(error => {
-					console.error(
-						`Error fetching books for subject ${subject}:`,
-						error
-					)
-				})
 		)
 
-		await Promise.all(topicPromises)
-
-		if (allBooks.length < 15 && keywords.length > 0) {
-			const keywordPromises = keywords.slice(0, 3).map(keyword =>
-				fetchBooksFromGutenberg('', 1, 8, keyword)
-					.then(async books => {
-						if (books.length === 0) {
-							books = await fetchBooksFromGutenberg(keyword, 1, 8)
-						}
-						books.forEach(book => {
-							if (
-								!usedIds.has(book.id) &&
-								!readBookIds.has(book.id)
-							) {
-								usedIds.add(book.id)
-								allBooks.push(book)
-							}
-						})
-					})
-					.catch(error => {
-						console.error(
-							`Error fetching books for keyword ${keyword}:`,
-							error
-						)
-					})
-			)
-
-			await Promise.all(keywordPromises)
-		}
-
-		if (allBooks.length < 10) {
-			try {
-				const popularBooks = await fetchBooksFromGutenberg('', 1, 15)
-				popularBooks.forEach(book => {
-					if (!usedIds.has(book.id) && !readBookIds.has(book.id)) {
-						usedIds.add(book.id)
-						allBooks.push(book)
-					}
-				})
-			} catch (error) {
-				console.error(`Error fetching popular books:`, error)
+		const results = await Promise.all(promises)
+		results.flat().forEach(book => {
+			if (!usedIds.has(book.id) && !readBookIds.has(book.id)) {
+				usedIds.add(book.id)
+				allBooks.push(book)
 			}
-		}
+		})
 
-		return allBooks
-	},
-	['recommendations'],
-	{ revalidate: 3600 }
-)
+		if (allBooks.length >= 15) break
+	}
+
+	if (allBooks.length < 15 && keywords.length > 0) {
+		for (let i = 0; i < Math.min(3, keywords.length); i++) {
+			const books = await fetchBooksFromGutenberg('', 1, 8, keywords[i])
+			books.forEach(book => {
+				if (!usedIds.has(book.id) && !readBookIds.has(book.id)) {
+					usedIds.add(book.id)
+					allBooks.push(book)
+				}
+			})
+		}
+	}
+
+	if (allBooks.length < 10) {
+		const popularBooks = await fetchBooksFromGutenberg('', 1, 15)
+		popularBooks.forEach(book => {
+			if (!usedIds.has(book.id) && !readBookIds.has(book.id)) {
+				usedIds.add(book.id)
+				allBooks.push(book)
+			}
+		})
+	}
+
+	return allBooks
+}
 
 async function fetchRecommendationBooks(
 	topics: string[],
@@ -146,17 +142,24 @@ async function fetchRecommendationBooks(
 	return getRecommendationsCached(topics, keywords, readBookIds)
 }
 
-export async function GET() {
+export async function GET(request: Request) {
 	try {
 		const { userId } = await auth()
+		const url = new URL(request.url)
+		const page = parseInt(url.searchParams.get('page') || '1')
+		const limit = parseInt(url.searchParams.get('limit') || '6')
 
 		if (!userId) {
 			return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 		}
 
+		const offset = (page - 1) * limit
+
 		const transactions = await prisma.transactions.findMany({
 			where: { userId },
-			orderBy: { createdAt: 'desc' }
+			orderBy: { createdAt: 'desc' },
+			take: limit,
+			skip: offset
 		})
 
 		const library = await prisma.userLibrary.findMany({
@@ -332,7 +335,7 @@ export async function GET() {
 				(a: RecommendationData, b: RecommendationData) =>
 					b.relevanceScore - a.relevanceScore
 			)
-			.slice(0, 6)
+			.slice(offset, offset + limit)
 
 		const recommendationSubjects: string[] = []
 
@@ -483,11 +486,16 @@ export async function GET() {
 			daysSinceLastRead,
 			firstReadDate,
 			lastReadDate,
-			recentActivity,
+			recentActivity: recentActivity.slice(0, 5),
 			calendarData,
 			topSubjects:
 				displaySubjects.length > 0 ? displaySubjects : topSubjects,
-			recommendations: totalBooks > 2 ? recommendations : []
+			recommendations,
+			pagination: {
+				currentPage: page,
+				totalPages: Math.ceil(allBooks.length / limit),
+				hasMore: offset + limit < allBooks.length
+			}
 		})
 	} catch (error) {
 		console.error('Error fetching reading statistics:', error)

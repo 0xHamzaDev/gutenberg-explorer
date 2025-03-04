@@ -282,7 +282,6 @@ export async function removeBookFromLibrary(bookId: number): Promise<boolean> {
 			}
 		})
 
-		// Revalidate the library cache
 		await revalidateLibrary(userId)
 
 		return Boolean(result)

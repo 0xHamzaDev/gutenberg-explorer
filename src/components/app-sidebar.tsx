@@ -48,11 +48,6 @@ import { useTheme } from 'next-themes'
 const data = {
 	navMain: [
 		{
-			title: 'Dashboard',
-			url: '/dashboard',
-			icon: BookText
-		},
-		{
 			title: 'My Library',
 			url: '/dashboard/library',
 			icon: BookMarked

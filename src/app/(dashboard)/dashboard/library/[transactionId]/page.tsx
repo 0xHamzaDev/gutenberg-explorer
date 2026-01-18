@@ -251,19 +251,7 @@ export default function ChatPage(): JSX.Element {
 					transactionId as string
 				)
 				setBookData(bookTransactionData as BookData)
-
-				if (bookTransactionData?.bookId) {
-					const findBookContent = await getBookContent(
-						bookTransactionData.bookId
-					)
-					if (findBookContent) {
-						const summarizedContent =
-							await summarizeContent(findBookContent)
-						setBookContent(summarizedContent)
-					}
-				}
 			} catch (error) {
-
 				setLoading(false)
 				setError('Failed to fetch book data')
 			} finally {
@@ -300,7 +288,7 @@ export default function ChatPage(): JSX.Element {
 	}, [messages])
 
 	const handleSendMessage = async (messageText: string) => {
-		if (!messageText.trim() || !transactionId) return
+		if (!messageText.trim() || !transactionId || !bookData) return
 
 		setIsTyping(true)
 
@@ -317,7 +305,18 @@ export default function ChatPage(): JSX.Element {
 		setInput('')
 
 		try {
-			const botResponse = await getAIResponse(messageText, bookContent)
+			let contentToUse = bookContent
+
+			if (!contentToUse) {
+				const findBookContent = await getBookContent(bookData.bookId)
+				if (findBookContent) {
+					const summarizedContent = await summarizeContent(findBookContent)
+					setBookContent(summarizedContent)
+					contentToUse = summarizedContent
+				}
+			}
+
+			const botResponse = await getAIResponse(messageText, contentToUse)
 
 			const newBotMessage: Message = {
 				role: 'bot',

@@ -17,7 +17,7 @@ export async function GET(
 		}
 
 		const transactionId = params.transactionId
-
+		
 		const transaction = await prisma.transactions.findFirst({
 			where: {
 				id: transactionId,

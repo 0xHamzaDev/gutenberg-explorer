@@ -1,165 +1,18 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import prisma from '@/lib/db'
-import { unstable_cache } from 'next/cache'
-
-interface BookData {
-	id: string
-	title: string
-	author: string | null
-	coverUrl: string | null
-	subjects: string[] | null
-}
-
-interface RecommendationData {
-	id: string
-	title: string
-	author: string | null
-	coverUrl: string | null
-	relevanceScore: number
-}
-
-const CACHE_DURATION = 3600 * 1000 // 1 hour
-const apiCache = new Map<string, { data: any; timestamp: number }>()
-
-async function fetchBooksFromGutenberg(
-	query: string = '',
-	page: number = 1,
-	limit: number = 20,
-	topic: string = ''
-): Promise<any[]> {
-	try {
-		let apiUrl = `https://gutendex.com/books?`
-		const cacheKey = `${query}-${page}-${limit}-${topic}`
-
-		const cached = apiCache.get(cacheKey)
-		if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-			return cached.data
-		}
-
-		if (topic && topic.trim() !== '') {
-			apiUrl += `topic=${encodeURIComponent(topic)}&`
-		}
-
-		if (query && query.trim() !== '') {
-			apiUrl += `search=${encodeURIComponent(query)}&`
-		}
-
-		apiUrl += `page=${page}`
-
-		const controller = new AbortController()
-		const timeoutId = setTimeout(() => controller.abort(), 5000) // 5s timeout
-
-		const response = await fetch(apiUrl, {
-			signal: controller.signal,
-			headers: {
-				'Accept-Encoding': 'gzip'
-			}
-		})
-
-		clearTimeout(timeoutId)
-
-		if (!response.ok) {
-			throw new Error(`Failed to fetch books: ${response.statusText}`)
-		}
-
-		const data = await response.json()
-		const results = (data.results || [])
-			.slice(0, limit)
-			.map((book: any) => ({
-				id: book.id.toString(),
-				title: book.title,
-				author: book.authors?.[0]?.name || null,
-				coverUrl: book.formats?.['image/jpeg'] || null,
-				subjects: book.subjects || []
-			}))
-
-		apiCache.set(cacheKey, { data: results, timestamp: Date.now() })
-
-		return results
-	} catch (error) {
-		console.error('Error fetching books from Gutenberg:', error)
-		return []
-	}
-}
-
-async function getRecommendationsCached(
-	topics: string[],
-	keywords: string[],
-	readBookIds: Set<string>
-): Promise<BookData[]> {
-	const allBooks: BookData[] = []
-	const usedIds = new Set<string>()
-	const batchSize = 3
-
-	for (let i = 0; i < topics.length; i += batchSize) {
-		const batch = topics.slice(i, i + batchSize)
-		const promises = batch.map(subject =>
-			fetchBooksFromGutenberg('', 1, 12, subject)
-		)
-
-		const results = await Promise.all(promises)
-		results.flat().forEach(book => {
-			if (!usedIds.has(book.id) && !readBookIds.has(book.id)) {
-				usedIds.add(book.id)
-				allBooks.push(book)
-			}
-		})
-
-		if (allBooks.length >= 15) break
-	}
-
-	if (allBooks.length < 15 && keywords.length > 0) {
-		for (let i = 0; i < Math.min(3, keywords.length); i++) {
-			const books = await fetchBooksFromGutenberg('', 1, 8, keywords[i])
-			books.forEach(book => {
-				if (!usedIds.has(book.id) && !readBookIds.has(book.id)) {
-					usedIds.add(book.id)
-					allBooks.push(book)
-				}
-			})
-		}
-	}
-
-	if (allBooks.length < 10) {
-		const popularBooks = await fetchBooksFromGutenberg('', 1, 15)
-		popularBooks.forEach(book => {
-			if (!usedIds.has(book.id) && !readBookIds.has(book.id)) {
-				usedIds.add(book.id)
-				allBooks.push(book)
-			}
-		})
-	}
-
-	return allBooks
-}
-
-async function fetchRecommendationBooks(
-	topics: string[],
-	keywords: string[],
-	readBookIds: Set<string>
-): Promise<BookData[]> {
-	return getRecommendationsCached(topics, keywords, readBookIds)
-}
 
 export async function GET(request: Request) {
 	try {
 		const { userId } = await auth()
-		const url = new URL(request.url)
-		const page = parseInt(url.searchParams.get('page') || '1')
-		const limit = parseInt(url.searchParams.get('limit') || '6')
 
 		if (!userId) {
 			return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 		}
 
-		const offset = (page - 1) * limit
-
 		const transactions = await prisma.transactions.findMany({
 			where: { userId },
-			orderBy: { createdAt: 'desc' },
-			take: limit,
-			skip: offset
+			orderBy: { createdAt: 'desc' }
 		})
 
 		const library = await prisma.userLibrary.findMany({
@@ -246,124 +99,6 @@ export async function GET(request: Request) {
 			.sort((a: [string, number], b: [string, number]) => b[1] - a[1])
 			.slice(0, 10)
 			.map(([keyword]) => keyword)
-
-		let allBooks: BookData[] = []
-		const usedIds = new Set<string>()
-		try {
-			const defaultLiterarySubjects = [
-				'fiction',
-				'novel',
-				'story',
-				'literature',
-				'fantasy',
-				'adventure',
-				'mystery',
-				'history',
-				'science',
-				'philosophy',
-				'romance'
-			]
-
-			const searchSubjects =
-				topSubjects.length >= 3
-					? topSubjects
-					: [
-							...topSubjects,
-							...defaultLiterarySubjects.slice(
-								0,
-								5 - topSubjects.length
-							)
-					  ]
-
-			allBooks = await fetchRecommendationBooks(
-				searchSubjects,
-				topKeywords,
-				readBookIds
-			)
-		} catch (error) {
-			console.error('Error fetching books for recommendations:', error)
-		}
-
-		const recommendations: RecommendationData[] = allBooks
-			.filter(book => !readBookIds.has(book.id))
-			.map(book => {
-				let relevanceScore = 0
-
-				const bookTitleText = (book.title || '').toLowerCase()
-
-				for (const subject of topSubjects) {
-					if (bookTitleText.includes(subject)) {
-						relevanceScore += 3
-					}
-				}
-
-				for (const keyword of topKeywords) {
-					if (bookTitleText.includes(keyword)) {
-						relevanceScore += 2
-					}
-				}
-
-				if (book.subjects && Array.isArray(book.subjects)) {
-					const bookSubjectsText = book.subjects
-						.join(' ')
-						.toLowerCase()
-
-					for (const subject of topSubjects) {
-						if (bookSubjectsText.includes(subject)) {
-							relevanceScore += 8
-						}
-					}
-
-					for (const keyword of topKeywords) {
-						if (bookSubjectsText.includes(keyword)) {
-							relevanceScore += 4
-						}
-					}
-				}
-
-				relevanceScore += 1
-
-				return {
-					id: book.id,
-					title: book.title,
-					author: book.author,
-					coverUrl: book.coverUrl,
-					relevanceScore
-				}
-			})
-			.sort(
-				(a: RecommendationData, b: RecommendationData) =>
-					b.relevanceScore - a.relevanceScore
-			)
-			.slice(offset, offset + limit)
-
-		const recommendationSubjects: string[] = []
-
-		recommendations.forEach(book => {
-			const bookData = allBooks.find(b => b.id === book.id)
-			if (
-				bookData &&
-				bookData.subjects &&
-				Array.isArray(bookData.subjects)
-			) {
-				bookData.subjects.forEach(subject => {
-					const cleanSubject = subject.trim()
-					if (
-						cleanSubject.length > 3 &&
-						cleanSubject.length < 30 &&
-						!recommendationSubjects.includes(cleanSubject) &&
-						!cleanSubject.includes(',')
-					) {
-						recommendationSubjects.push(cleanSubject)
-					}
-				})
-			}
-		})
-
-		const displaySubjects = recommendationSubjects.slice(
-			0,
-			Math.min(10, recommendationSubjects.length)
-		)
 
 		const booksWithMessages = messagesByBook.size
 		const averageMessagesPerBook =
@@ -488,14 +223,7 @@ export async function GET(request: Request) {
 			lastReadDate,
 			recentActivity: recentActivity.slice(0, 5),
 			calendarData,
-			topSubjects:
-				displaySubjects.length > 0 ? displaySubjects : topSubjects,
-			recommendations,
-			pagination: {
-				currentPage: page,
-				totalPages: Math.ceil(allBooks.length / limit),
-				hasMore: offset + limit < allBooks.length
-			}
+			topSubjects
 		})
 	} catch (error) {
 		console.error('Error fetching reading statistics:', error)

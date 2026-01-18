@@ -12,7 +12,7 @@
 
 -   **Explore Books**: Browse through Project Gutenberg’s collection of e-books.
 -   **Download Books**: Download e-books to read offline in various formats.
--   **Book Recommendation**: Book recommendation based on your previous books
+-   **Personal Library**: Save and manage your favorite books in your personalized library.
 -   **Text Analysis**: Analyze book content with features such as:
     -   **Character Identification**: Detect key characters in the story.
     -   **Language Detection**: Identify the language of the text.
@@ -69,8 +69,8 @@ To get started with the development version of Gutenberg Explorer, clone the rep
     CLERK_SECRET_KEY="your-clerk-secret-key-here"
     NEXT_PUBLIC_BASE_URL="your-base-url-here"
 
-    # Open AI API Key
-    OPENAI_API_KEY="your-openai-api-key-here"
+    # SambaNova AI API Key (using OpenAI SDK compatible endpoint)
+    OPENAI_API_KEY="your-sambanova-api-key-here"
     ```
 
 4. Run the development server:

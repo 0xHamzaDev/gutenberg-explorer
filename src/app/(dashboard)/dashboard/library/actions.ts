@@ -4,6 +4,7 @@ import { auth } from '@clerk/nextjs/server'
 import prisma from '@/lib/db'
 import { createChatCompletion } from '@/lib/ai'
 import { unstable_cache } from 'next/cache'
+import { revalidatePath, revalidateTag } from 'next/cache'
 
 export async function getBookTransaction(
 	id: string,
@@ -17,25 +18,46 @@ export async function getBookTransaction(
 		throw new Error('User ID is null')
 	}
 
-	const transaction = await prisma.transactions.upsert({
-		where: {
-			userId_bookId: {
+	const [transaction] = await Promise.all([
+		prisma.transactions.upsert({
+			where: {
+				userId_bookId: {
+					userId,
+					bookId
+				}
+			},
+			update: {
+				updatedAt: new Date()
+			},
+			create: {
 				userId,
-				bookId
+				bookId,
+				bookTitle,
+				bookAuthor,
+				bookCover
 			}
-		},
-		update: {
-			updatedAt: new Date()
-		},
-		create: {
-			userId,
-			bookId,
-			bookTitle,
-			bookAuthor,
-			bookCover
-		}
-	})
+		}),
+		prisma.userLibrary.upsert({
+			where: {
+				userId_bookId: {
+					userId,
+					bookId
+				}
+			},
+			update: {
+				updatedAt: new Date()
+			},
+			create: {
+				userId,
+				bookId,
+				bookTitle,
+				bookAuthor,
+				bookCover
+			}
+		})
+	])
 
+	revalidateTag('library')
 	return transaction.id
 }
 
@@ -66,27 +88,33 @@ export interface LibraryBook {
 }
 
 export const getUserLibraryData = unstable_cache(
-	async (userId: string): Promise<LibraryBook[]> => {
+	async (userId: string) => {
 		if (!userId) {
 			throw new Error('User ID is null')
 		}
 
 		const library = await prisma.userLibrary.findMany({
 			where: {
-				userId: userId
+				userId
 			},
-			orderBy: [{ favorite: 'desc' }, { updatedAt: 'desc' }]
+			orderBy: {
+				updatedAt: 'desc'
+			}
 		})
 
 		return library
 	},
-	['user-library'],
-	{ revalidate: 1 }
+	['user-library-data'],
+	{
+		revalidate: 300,
+		tags: ['library']
+	}
 )
 
 export async function revalidateLibrary(userId: string) {
 	'use server'
-	await getUserLibraryData.revalidate(userId)
+	revalidatePath('/dashboard/library')
+	revalidateTag('library')
 }
 
 export async function getUserLibrary() {
@@ -110,25 +138,31 @@ export const summarizeContent = async (
 	bookContent: string
 ): Promise<string> => {
 	const truncatedContent = truncateContent(bookContent, MAX_SUMMARY_LENGTH)
-	const summaryPrompt = `
-        Summarize the following content briefly:
-        ${truncatedContent}
-    `
+	const summaryPrompt = `Summarize in 3-4 sentences max: ${truncatedContent}`
 
 	try {
 		const response = await createChatCompletion({
-			model: 'gpt-3.5-turbo',
+			model: 'Meta-Llama-3.3-70B-Instruct',
 			messages: [
-				{ role: 'system', content: 'You are a summarizer AI.' },
+				{ role: 'system', content: 'You are a concise book summarizer. Keep responses under 100 words.' },
 				{ role: 'user', content: summaryPrompt }
-			]
+			],
+			temperature: 0.3,
+			max_tokens: 300
 		})
 
 		return (
 			response.choices[0].message.content ||
 			truncatedContent.slice(0, 1000)
 		)
-	} catch (error) {
+	} catch (error: any) {
+		console.error('Summary Error:', error)
+		if (error?.message?.includes('not configured')) {
+			return '⚠️ AI summarization is disabled. Please configure your SambaNova API key in .env.local to enable this feature.'
+		}
+		if (error?.message?.includes('authentication failed')) {
+			return '⚠️ AI authentication failed. Please complete onboarding at https://cloud.sambanova.ai/apis'
+		}
 		return truncatedContent.slice(0, 1000)
 	}
 }
@@ -160,65 +194,63 @@ export const getAIResponse = async (
 	bookContent: string
 ): Promise<string> => {
 	try {
-		const prompt = `
-        I am an AI assistant specializing in analyzing and discussing books.
-        I will provide insights, analysis, and answer questions about books based on the content provided.
-        
-        The book content is:
-        ${truncateContent(bookContent, 5000)}
-        
-        The user's question or message is:
-        ${userMessage}
-        
-        Provide a thoughtful and insightful response to the user's message based on the book content.
-        If the user's message isn't specifically about the book, I'll provide a general response related to the book.
-        If I don't know the answer to something specific, I'll be honest about it.
-        `
+		const prompt = `Book: ${truncateContent(bookContent, 3000)}
+
+Question: ${userMessage}
+
+Answer briefly (max 150 words):`
 
 		const response = await createChatCompletion({
-			model: 'gpt-3.5-turbo',
+			model: 'Meta-Llama-3.3-70B-Instruct',
 			messages: [
-				{ role: 'system', content: 'You are a book analysis AI.' },
+				{ role: 'system', content: 'You are a book analysis assistant. Keep responses under 150 words. Answer with the minimum information required. Do not explain reasoning unless explicitly asked. Do not add examples, background, author references, or interpretations. Respond in one or two sentences when possible.' },
 				{ role: 'user', content: prompt }
-			]
+			],
+			temperature: 0.5,
+			max_tokens: 400
 		})
 
 		return (
 			response.choices[0].message.content ||
 			"I'm sorry, I couldn't analyze this book content at the moment."
 		)
-	} catch (error) {
+	} catch (error: any) {
+		console.error('AI Response Error:', error)
+
+		if (error?.message?.includes('not configured')) {
+			return "⚠️ **AI Chat is Disabled**\n\nTo enable AI chat features, please:\n1. Get your API key from https://cloud.sambanova.ai/apis\n2. Add it to your `.env.local` file as `OPENAI_API_KEY=your-key-here`\n3. Restart the development server"
+		}
+
+		if (error?.message?.includes('authentication failed')) {
+			return "⚠️ **Authentication Failed**\n\nPlease complete the onboarding process at https://cloud.sambanova.ai/apis to use AI features."
+		}
+
+		if (error?.message?.includes('Invalid')) {
+			return "⚠️ **Invalid API Key**\n\nYour SambaNova API key appears to be invalid or expired. Please check your configuration at https://cloud.sambanova.ai/apis"
+		}
+
 		return "I'm sorry, I couldn't analyze this book content at the moment. Please try again later."
 	}
 }
 
-export async function toggleBookFavorite(bookId: string): Promise<boolean> {
+export async function toggleBookFavorite(bookId: string, currentFavoriteState: boolean): Promise<boolean> {
 	try {
 		const { userId } = await auth()
 		if (!userId) {
 			return false
 		}
 
-		const book = await prisma.userLibrary.findFirst({
+		await prisma.userLibrary.updateMany({
 			where: {
 				userId,
 				bookId
-			}
-		})
-
-		if (!book) {
-			return false
-		}
-
-		await prisma.userLibrary.update({
-			where: {
-				id: book.id
 			},
 			data: {
-				favorite: !book.favorite
+				favorite: !currentFavoriteState
 			}
 		})
 
+		revalidateTag('library')
 		return true
 	} catch (error) {
 		return false

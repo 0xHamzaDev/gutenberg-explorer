@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/card'
 import { useState, useRef, useEffect } from 'react'
 import { fetchBooks } from '@/app/(dashboard)/dashboard/books/actions'
-import { Search, Sparkles, Book, BookOpen, X } from 'lucide-react'
+import { Search, Book, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useRouter } from 'next/navigation'
@@ -24,28 +24,7 @@ interface Book {
 	coverUrl: string
 }
 
-interface Recommendation {
-	id: string
-	title: string
-	author: string | null
-	coverUrl: string | null
-	relevanceScore: number
-}
 
-interface ReadingStats {
-	recommendations: Recommendation[]
-	topSubjects: string[]
-	totalBooks: number
-	recentActivity: {
-		id: string
-		bookId: string
-		title: string
-		author: string | null
-		date: string
-		messageCount: number
-		transactionId?: string
-	}[]
-}
 
 function useDebounce<T>(value: T, delay: number): T {
 	const [debouncedValue, setDebouncedValue] = useState<T>(value)
@@ -73,25 +52,6 @@ export default function BooksPage(): JSX.Element {
 	const router = useRouter()
 
 	const debouncedQuery = useDebounce(searchQuery, 300)
-
-	const { data: recommendationsData, isLoading: recommendationsLoading } =
-		useSWR<ReadingStats>(
-			'/dashboard/stats',
-			async url => {
-				const response = await fetch(url)
-				if (!response.ok) {
-					throw new Error('Failed to fetch recommendations')
-				}
-				const data = await response.json()
-				return {
-					recommendations: data.recommendations || [],
-					topSubjects: data.topSubjects || [],
-					totalBooks: data.totalBooks || 0,
-					recentActivity: data.recentActivity || []
-				}
-			},
-			{ revalidateOnFocus: false }
-		)
 
 	const {
 		data: books,
@@ -153,116 +113,6 @@ export default function BooksPage(): JSX.Element {
 		</Card>
 	)
 
-	const RecommendedBooks = () => {
-		if (recommendationsLoading) {
-			return (
-				<div className="mb-10">
-					<div className="flex items-center mb-4">
-						<Skeleton className="h-7 w-48 mr-2" />
-						<Skeleton className="h-5 w-5" />
-					</div>
-					<div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6">
-						{Array.from({ length: 6 }).map((_, index) => (
-							<Skeleton
-								key={index}
-								className="aspect-[2/3] rounded-md"
-							/>
-						))}
-					</div>
-				</div>
-			)
-		}
-
-		if (
-			!recommendationsData?.recommendations ||
-			recommendationsData.recommendations.length === 0 ||
-			!recommendationsData.totalBooks ||
-			recommendationsData.totalBooks <= 2
-		) {
-			return null
-		}
-
-		return (
-			<div className="mb-10">
-				<div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
-					<div>
-						<h3 className="text-2xl font-bold flex items-center">
-							Recommended for You
-							<Sparkles className="h-5 w-5 ml-2 text-yellow-500" />
-						</h3>
-						<p className="text-muted-foreground text-sm mt-1">
-							Books from Gutenberg's library matching your reading
-							interests
-						</p>
-					</div>
-
-					{recommendationsData.topSubjects &&
-						recommendationsData.topSubjects.length > 0 && (
-							<div className="mt-3 md:mt-0 flex flex-wrap gap-2 md:justify-end">
-								<span className="inline-block text-xs font-medium text-muted-foreground pr-2">
-									Topics of Interest:
-								</span>
-								{recommendationsData.topSubjects.map(
-									(subject, index) => (
-										<span
-											key={index}
-											className="inline-block px-3 py-1 text-xs font-medium rounded-full bg-primary/10 text-primary"
-										>
-											{subject}
-										</span>
-									)
-								)}
-							</div>
-						)}
-				</div>
-
-				<div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6">
-					{recommendationsData.recommendations.map(book => (
-						<div
-							key={book.id}
-							onClick={() =>
-								router.push(`/dashboard/books/${book.id}`)
-							}
-							className="flex flex-col items-center cursor-pointer group relative"
-						>
-							<div className="absolute top-2 right-2 bg-primary/90 text-white text-xs font-semibold px-2 py-1 rounded-full z-10 opacity-0 group-hover:opacity-100 transition-opacity">
-								{Math.min(
-									99,
-									Math.round(book.relevanceScore * 10)
-								)}
-								% match
-							</div>
-							<div className="relative w-full aspect-[2/3] mb-2 overflow-hidden rounded-md shadow-md transition-all duration-300 group-hover:shadow-lg">
-								{book.coverUrl ? (
-									<Image
-										src={book.coverUrl}
-										alt={`Cover of ${book.title}`}
-										width={250}
-										height={375}
-										sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, (max-width: 1280px) 20vw, 16vw"
-										className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105"
-									/>
-								) : (
-									<div className="flex items-center justify-center w-full h-full bg-muted">
-										<Book className="h-12 w-12 text-muted-foreground" />
-									</div>
-								)}
-								<div className="absolute bottom-0 left-0 right-0 px-2 py-1 bg-background/70 backdrop-blur-sm">
-									<p className="text-xs font-medium truncate">
-										{book.title}
-									</p>
-								</div>
-							</div>
-							<p className="text-xs text-center text-muted-foreground truncate w-full">
-								{book.author || 'Unknown Author'}
-							</p>
-						</div>
-					))}
-				</div>
-			</div>
-		)
-	}
-
 	return (
 		<div className="container mx-auto py-6 px-4 sm:px-6 lg:px-8">
 			<div className="flex items-center justify-between mb-8">
@@ -301,8 +151,6 @@ export default function BooksPage(): JSX.Element {
 					</div>
 				</div>
 			</div>
-
-			{!searchQuery && <RecommendedBooks />}
 
 			<div className="mb-6">
 				<h3 className="text-xl font-semibold mb-4">

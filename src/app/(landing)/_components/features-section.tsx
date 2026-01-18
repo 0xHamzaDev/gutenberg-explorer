@@ -33,7 +33,7 @@ export const features: Feature[] = [
 	{
 		title: 'Interactive Experience',
 		description:
-			'Enjoy an interactive experience with personalized book recommendations and dynamic summaries, offering a fresh way to engage with literature and discover new authors.'
+			'Enjoy an interactive experience with AI-powered chat, dynamic summaries, and a personalized library, offering a fresh way to engage with literature and discover new authors.'
 	}
 ]
 

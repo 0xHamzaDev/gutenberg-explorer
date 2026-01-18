@@ -36,9 +36,9 @@ export default function LibraryPage(): JSX.Element {
 		'user-library',
 		getUserLibrary,
 		{
-			refreshInterval: 1000,
-			revalidateOnFocus: true,
-			dedupingInterval: 500
+			revalidateOnFocus: false,
+			revalidateOnReconnect: false,
+			dedupingInterval: 2000
 		}
 	)
 
@@ -51,18 +51,19 @@ export default function LibraryPage(): JSX.Element {
 	}, [books])
 
 	const handleFavorite = async (bookId: string) => {
-		const newBooks = books.map(book =>
-			book.bookId === bookId
-				? { ...book, favorite: !book.favorite }
-				: book
+		const book = books.find(b => b.bookId === bookId)
+		if (!book) return
+
+		const newBooks = books.map(b =>
+			b.bookId === bookId
+				? { ...b, favorite: !b.favorite }
+				: b
 		)
 		await mutate(newBooks, false)
 
-		const success = await toggleBookFavorite(bookId)
+		const success = await toggleBookFavorite(bookId, book.favorite)
 		if (!success) {
 			toast.error('Failed to update favorite status')
-			await mutate()
-		} else {
 			await mutate()
 		}
 	}

@@ -5,33 +5,13 @@ import prisma from '@/lib/db'
 import { z } from 'zod'
 import { unstable_cache } from 'next/cache'
 import { revalidateLibrary } from '@/app/(dashboard)/dashboard/library/actions'
+import { getGutenbergBook, searchGutenbergBooks } from '@/lib/gutenberg'
 
 const BookSchema = z.object({
 	id: z.number(),
 	title: z.string(),
 	author: z.string(),
 	coverUrl: z.string()
-})
-
-const GutenbergBookResponseSchema = z.object({
-	results: z
-		.array(
-			z.object({
-				id: z.number(),
-				title: z.string(),
-				authors: z
-					.array(
-						z.object({
-							name: z.string()
-						})
-					)
-					.optional()
-					.default([]),
-				formats: z.record(z.string())
-			})
-		)
-		.optional()
-		.default([])
 })
 
 const GutenbergBookDetailSchema = z.object({
@@ -54,118 +34,40 @@ const GutenbergBookDetailSchema = z.object({
 type Book = z.infer<typeof BookSchema>
 type GutenbergBookDetail = z.infer<typeof GutenbergBookDetailSchema>
 
-async function fetchWithRetry(
-	url: string,
-	options = {},
-	retries = 3,
-	backoff = 300
-) {
-	let lastError
-	for (let i = 0; i < retries; i++) {
-		try {
-			return await fetch(url, options)
-		} catch (err) {
-			lastError = err
-			await new Promise(resolve =>
-				setTimeout(resolve, backoff * Math.pow(2, i))
-			)
-		}
-	}
-	throw lastError
+// Book browsing/search now goes through the Postgres-backed, timeout-guarded
+// cache layer (see src/lib/gutenberg.ts) instead of hitting Gutendex directly.
+export async function fetchBooks(
+	query: string,
+	page: number = 1
+): Promise<Book[]> {
+	const books = await searchGutenbergBooks(query, page)
+	return books.map(book => ({
+		id: book.id,
+		title: book.title,
+		author: book.author,
+		coverUrl: book.coverUrl || 'default-cover-url.jpg'
+	}))
 }
 
-export const fetchBooks = unstable_cache(
-	async (query: string, page: number = 1): Promise<Book[]> => {
-		try {
-			const apiUrl = `https://gutendex.com/books?search=${encodeURIComponent(
-				query
-			)}&page=${page}`
-			const response = await fetchWithRetry(apiUrl)
+export async function fetchBookById(
+	bookId: number
+): Promise<GutenbergBookDetail> {
+	const book = await getGutenbergBook(bookId)
+	if (!book) {
+		throw new Error('Failed to fetch book details')
+	}
 
-			if (!response.ok) {
-				throw new Error(`Failed to fetch books: ${response.statusText}`)
-			}
-
-			const rawData = await response.json()
-
-			const data = GutenbergBookResponseSchema.parse(rawData)
-
-			return data.results.map(book => {
-				let coverUrl =
-					book.formats['image/jpeg'] || 'default-cover-url.jpg'
-
-				if (
-					coverUrl &&
-					!coverUrl.startsWith('http://') &&
-					!coverUrl.startsWith('https://') &&
-					coverUrl !== 'default-cover-url.jpg'
-				) {
-					coverUrl = `https:${
-						coverUrl.startsWith('//') ? coverUrl : `//${coverUrl}`
-					}`
-				}
-
-				return {
-					id: book.id,
-					title: book.title,
-					author: book.authors?.[0]?.name || 'Unknown Author',
-					coverUrl: coverUrl
-				}
-			})
-		} catch (error) {
-			console.error('Error fetching books:', error)
-
-			return []
-		}
-	},
-	[],
-	{ revalidate: 3600 }
-)
-
-export const fetchBookById = unstable_cache(
-	async (bookId: number): Promise<GutenbergBookDetail> => {
-		try {
-			const apiUrl = `https://gutendex.com/books/${bookId}`
-			const response = await fetchWithRetry(apiUrl)
-
-			if (!response.ok) {
-				throw new Error(
-					`Failed to fetch book by ID: ${response.statusText}`
-				)
-			}
-
-			const rawData = await response.json()
-
-			const bookData = GutenbergBookDetailSchema.parse(rawData)
-
-			const fixedFormats: Record<string, string> = {}
-
-			for (const [format, url] of Object.entries(bookData.formats)) {
-				if (url && typeof url === 'string') {
-					if (
-						!url.startsWith('http://') &&
-						!url.startsWith('https://')
-					) {
-						fixedFormats[format] = `https:${
-							url.startsWith('//') ? url : `//${url}`
-						}`
-					} else {
-						fixedFormats[format] = url
-					}
-				}
-			}
-
-			return {
-				...bookData,
-				formats: fixedFormats
-			}
-		} catch (error) {
-			throw new Error('Failed to fetch book details')
-		}
-	},
-	['book-detail'],
-	{ revalidate: 86400 }
-)
+	// Adapt the normalized cache shape back to what the detail page/recs expect.
+	return {
+		id: book.id,
+		title: book.title,
+		authors: book.author ? [{ name: book.author }] : [],
+		formats: book.coverUrl ? { 'image/jpeg': book.coverUrl } : {},
+		download_count: book.downloadCount,
+		languages: book.languages,
+		subjects: book.subjects
+	}
+}
 
 export const isBookInLibraryCached = unstable_cache(
 	async (bookId: number, userId: string): Promise<boolean> => {
@@ -241,13 +143,19 @@ export async function addBookToLibrary(
 			return true
 		}
 
+		// Denormalize subjects/languages at add-time (cache-first, so it's cheap
+		// and won't hang) so recommendations never re-fetch this book's metadata.
+		const detail = await getGutenbergBook(bookId)
+
 		const result = await prisma.userLibrary.create({
 			data: {
 				userId,
 				bookId: bookId.toString(),
 				bookTitle,
-				bookCover: bookCover || '',
-				bookAuthor: bookAuthor || 'Unknown',
+				bookCover: bookCover || detail?.coverUrl || '',
+				bookAuthor: bookAuthor || detail?.author || 'Unknown',
+				subjects: detail?.subjects ?? [],
+				languages: detail?.languages ?? [],
 				createdAt: new Date()
 			}
 		})

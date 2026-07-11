@@ -34,12 +34,36 @@ model UserLibrary {
     bookAuthor String?
     favorite   Boolean  @default(false)
 
+    // Denormalized Gutenberg metadata so recommendations can build a taste
+    // profile straight from the DB without re-hitting the (slow) Gutendex API.
+    subjects  String[] @default([])
+    languages String[] @default([])
+
     createdAt DateTime @default(now())
     updatedAt DateTime @default(now()) @updatedAt
 
     @@unique([userId, bookId])
     @@index([userId])
     @@index([bookId])
+}
+
+// Durable cache / read-model for Project Gutenberg book metadata. Gutendex
+// (gutendex.com) is a slow, intermittently-unavailable third party; caching its
+// responses in Postgres keeps the book UI fast and resilient when it's down.
+model GutenbergBook {
+    id            Int      @id // Gutenberg/Gutendex book id
+    title         String
+    author        String?
+    coverUrl      String?
+    subjects      String[] @default([])
+    languages     String[] @default([])
+    downloadCount Int      @default(0)
+
+    cachedAt  DateTime @default(now())
+    updatedAt DateTime @default(now()) @updatedAt
+
+    @@index([downloadCount(sort: Desc)])
+    @@index([title])
 }
 
 model Transactions {

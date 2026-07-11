@@ -23,6 +23,8 @@ import {
 	addBookToLibrary,
 	removeBookFromLibrary
 } from '@/app/(dashboard)/dashboard/books/actions'
+import { fetchSimilarBooks } from '@/app/(dashboard)/dashboard/books/recommendations'
+import { BookRecommendations } from '@/components/custom/book-recommendations'
 
 function NoBookFound() {
 	const router = useRouter()
@@ -325,6 +327,17 @@ export default function Preview() {
 					<GutenbergBookOverview bookId={bookId} />
 				</TabsContent>
 			</Tabs>
+
+			{!Number.isNaN(bookId) && (
+				<div className="mt-10">
+					<BookRecommendations
+						title="Similar Books"
+						swrKey={`similar-books-${bookId}`}
+						fetcher={() => fetchSimilarBooks(bookId)}
+						hideWhenEmpty
+					/>
+				</div>
+			)}
 		</div>
 	)
 }

@@ -16,6 +16,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useRouter } from 'next/navigation'
 import useSWR from 'swr'
 import { Button } from '@/components/ui/button'
+import { BookRecommendations } from '@/components/custom/book-recommendations'
+import { fetchRecommendations } from '@/app/(dashboard)/dashboard/books/recommendations'
 
 interface Book {
 	id: number
@@ -23,8 +25,6 @@ interface Book {
 	author: string
 	coverUrl: string
 }
-
-
 
 function useDebounce<T>(value: T, delay: number): T {
 	const [debouncedValue, setDebouncedValue] = useState<T>(value)
@@ -118,10 +118,12 @@ export default function BooksPage(): JSX.Element {
 			<div className="flex items-center justify-between mb-8">
 				<h2 className="text-3xl font-bold">Explore Books</h2>
 				<div className="relative flex items-center">
-					<div className={cn(
-						"flex items-center bg-background rounded-full border px-3 py-2 w-64 transition-all duration-300",
-						isSearchVisible ? "ring-1 ring-ring" : ""
-					)}>
+					<div
+						className={cn(
+							'flex items-center bg-background rounded-full border px-3 py-2 w-64 transition-all duration-300',
+							isSearchVisible ? 'ring-1 ring-ring' : ''
+						)}
+					>
 						<Search className="h-4 w-4 text-muted-foreground shrink-0" />
 						<input
 							ref={searchInputRef}
@@ -152,9 +154,19 @@ export default function BooksPage(): JSX.Element {
 				</div>
 			</div>
 
+			{!searchQuery && (
+				<BookRecommendations
+					title="Recommended for You"
+					swrKey="book-recommendations"
+					fetcher={fetchRecommendations}
+				/>
+			)}
+
 			<div className="mb-6">
 				<h3 className="text-xl font-semibold mb-4">
-					{searchQuery ? `Search Results for "${searchQuery}"` : "All Books"}
+					{searchQuery
+						? `Search Results for "${searchQuery}"`
+						: 'All Books'}
 				</h3>
 			</div>
 
@@ -196,7 +208,7 @@ export default function BooksPage(): JSX.Element {
 									{book.author || 'Unknown Author'}
 								</p>
 							</div>
-					))}
+						))}
 			</div>
 
 			{allBooks?.length === 0 && !isLoading && (

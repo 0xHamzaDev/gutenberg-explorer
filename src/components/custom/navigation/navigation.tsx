@@ -27,7 +27,7 @@ const navItems = [
 	}
 ]
 
-export function Navigation(): JSX.Element {
+export function Navigation() {
 	return (
 		<NavigationMenu className="hidden transition-all duration-300 ease-in-out md:flex">
 			<NavigationMenuList>

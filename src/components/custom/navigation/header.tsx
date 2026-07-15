@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -20,29 +20,29 @@ import { NavigationMobile } from '@/components/custom/navigation/navigation-mobi
 import { useUser, useClerk } from '@clerk/nextjs'
 import ThemeToggle from '@/components/custom/theme-toggle'
 
-export function Header(): JSX.Element {
+export function Header() {
 	const { user } = useUser()
 	const { signOut } = useClerk()
 	const [isVisible, setIsVisible] = useState(true)
-	const [lastScrollY, setLastScrollY] = useState(0)
+	const lastScrollY = useRef(0)
 
 	useEffect(() => {
 		const handleScroll = () => {
 			const currentScrollY = window.scrollY
 
-			if (currentScrollY > lastScrollY) {
+			if (currentScrollY > lastScrollY.current) {
 				setIsVisible(false)
 			} else {
 				setIsVisible(true)
 			}
 
-			setLastScrollY(currentScrollY)
+			lastScrollY.current = currentScrollY
 		}
 
 		window.addEventListener('scroll', handleScroll, { passive: true })
 
 		return () => window.removeEventListener('scroll', handleScroll)
-	}, [lastScrollY])
+	}, [])
 
 	return (
 		<header

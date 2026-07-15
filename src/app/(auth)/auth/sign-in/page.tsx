@@ -92,12 +92,13 @@ export default function HalfSidedGlassMorphismAuthentication() {
 					ff.safeIdentifier === emailAddress
 			)
 			if (!ff) return
-			const { emailAddressId } = ff
+			const emailAddressId =
+				'emailAddressId' in ff ? (ff.emailAddressId as string) : undefined
+			if (!emailAddressId) return
 
 			const res = await startEmailLinkFlow({
 				emailAddressId,
-				redirectUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/auth/verify-email`,
-				strategy: 'email_link'
+				redirectUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/auth/verify-email`
 			})
 
 			const verification = res.firstFactorVerification

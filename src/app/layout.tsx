@@ -3,7 +3,6 @@ import type { Metadata, Viewport } from 'next'
 import localFont from 'next/font/local'
 import { ClerkProvider } from '@clerk/nextjs'
 import { Providers } from '@/components/providers/providers'
-import { Footer } from '@/components/custom/footer'
 import TopLoader from '@/components/custom/top-loader'
 import { Toaster } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -32,7 +31,7 @@ export const viewport: Viewport = {
 }
 
 export const metadata: Metadata = {
-	metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL as string),
+	metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000'),
 	title: {
 		default: 'Gutenberg AI',
 		template: `%s - Gutenberg AI`
@@ -61,12 +60,12 @@ export const metadata: Metadata = {
 	openGraph: {
 		type: 'website',
 		locale: 'en_US',
-		url: 'localhost:3000',
+		url: process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000',
 		title: 'Gutenberg AI',
 		description:
 			'An AI that helps you convert Gutenberg AI into a chatbot around the book.',
 		siteName: 'Gutenberg AI',
-		image: '/logo.svg'
+		images: '/logo.svg'
 	},
 	icons: {
 		icon: '/favicon.ico'

@@ -21,7 +21,7 @@ function MobileLink({
 	disabled,
 	segment,
 	setIsOpen
-}: MobileLinkProps): JSX.Element {
+}: MobileLinkProps) {
 	return (
 		<Link
 			href={href}

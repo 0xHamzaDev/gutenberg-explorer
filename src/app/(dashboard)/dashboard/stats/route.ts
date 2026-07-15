@@ -106,17 +106,23 @@ export async function GET(request: Request) {
 				? Math.round((totalMessages / booksWithMessages) * 10) / 10
 				: 0
 
-		const readingHours = transactions.reduce((acc, t) => {
-			const hour = new Date(t.createdAt).getHours()
-			acc[hour] = (acc[hour] || 0) + 1
-			return acc
-		}, {} as Record<number, number>)
+		const readingHours = transactions.reduce(
+			(acc, t) => {
+				const hour = new Date(t.createdAt).getHours()
+				acc[hour] = (acc[hour] || 0) + 1
+				return acc
+			},
+			{} as Record<number, number>
+		)
 
-		const readingDays = transactions.reduce((acc, t) => {
-			const day = new Date(t.createdAt).getDay()
-			acc[day] = (acc[day] || 0) + 1
-			return acc
-		}, {} as Record<number, number>)
+		const readingDays = transactions.reduce(
+			(acc, t) => {
+				const day = new Date(t.createdAt).getDay()
+				acc[day] = (acc[day] || 0) + 1
+				return acc
+			},
+			{} as Record<number, number>
+		)
 
 		const readingHoursData = Array.from({ length: 24 }, (_, hour) => ({
 			hour,
@@ -148,21 +154,21 @@ export async function GET(request: Request) {
 		const lastReadDate = sortedTransactions.length
 			? new Date(
 					sortedTransactions[sortedTransactions.length - 1].createdAt
-			  )
+				)
 			: null
 
 		const daysSinceFirstRead = firstReadDate
 			? Math.floor(
 					(new Date().getTime() - firstReadDate.getTime()) /
 						(1000 * 3600 * 24)
-			  )
+				)
 			: 0
 
 		const daysSinceLastRead = lastReadDate
 			? Math.floor(
 					(new Date().getTime() - lastReadDate.getTime()) /
 						(1000 * 3600 * 24)
-			  )
+				)
 			: null
 
 		const recentActivity = transactions.slice(0, 5).map(t => ({
@@ -195,7 +201,7 @@ export async function GET(request: Request) {
 			calendarData.push({ day, value })
 		})
 
-		const currentDate = new Date()
+		const currentDate = new Date(oneYearAgo)
 		while (currentDate <= now) {
 			const formattedDate = currentDate.toISOString().split('T')[0]
 			if (!dateCountMap[formattedDate]) {

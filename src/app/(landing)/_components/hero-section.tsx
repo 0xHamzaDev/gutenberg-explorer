@@ -30,8 +30,8 @@ export function HeroSection() {
 					<Balancer>
 						Your go-to reading assistant. The ultimate, AI-powered,
 						open-source app, Gutenberg AI delivers quick book
-						summaries, insightful highlights, and interactive AI chat
-						—everything you need to dive into books with ease.
+						summaries, insightful highlights, and interactive AI
+						chat —everything you need to dive into books with ease.
 					</Balancer>
 				</h3>
 

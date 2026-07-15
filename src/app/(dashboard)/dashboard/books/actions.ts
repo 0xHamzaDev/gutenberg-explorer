@@ -1,6 +1,6 @@
 'use server'
 
-import { clerkClient, auth } from '@clerk/nextjs/server'
+import { auth } from '@clerk/nextjs/server'
 import prisma from '@/lib/db'
 import { z } from 'zod'
 import { unstable_cache } from 'next/cache'

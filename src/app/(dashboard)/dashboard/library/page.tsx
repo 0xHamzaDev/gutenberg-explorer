@@ -2,18 +2,16 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
-import { Card, CardContent } from '@/components/ui/card'
 import {
 	getBookTransaction,
 	getUserLibrary,
 	toggleBookFavorite,
-	LibraryBook,
-	revalidateLibrary
+	LibraryBook
 } from '@/app/(dashboard)/dashboard/library/actions'
 import { removeBookFromLibrary } from '@/app/(dashboard)/dashboard/books/actions'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
-import { redirect } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { Star, Trash2, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
@@ -31,16 +29,17 @@ function ensureProperUrl(url: string | null | undefined): string {
 	return url
 }
 
-export default function LibraryPage(): JSX.Element {
-	const { data: books = [], mutate, isLoading } = useSWR<Book[]>(
-		'user-library',
-		getUserLibrary,
-		{
-			revalidateOnFocus: false,
-			revalidateOnReconnect: false,
-			dedupingInterval: 2000
-		}
-	)
+export default function LibraryPage() {
+	const router = useRouter()
+	const {
+		data: books = [],
+		mutate,
+		isLoading
+	} = useSWR<Book[]>('user-library', getUserLibrary, {
+		revalidateOnFocus: false,
+		revalidateOnReconnect: false,
+		dedupingInterval: 2000
+	})
 
 	const sortedBooks = useMemo(() => {
 		return [...books].sort((a, b) => {
@@ -55,9 +54,7 @@ export default function LibraryPage(): JSX.Element {
 		if (!book) return
 
 		const newBooks = books.map(b =>
-			b.bookId === bookId
-				? { ...b, favorite: !b.favorite }
-				: b
+			b.bookId === bookId ? { ...b, favorite: !b.favorite } : b
 		)
 		await mutate(newBooks, false)
 
@@ -114,7 +111,7 @@ export default function LibraryPage(): JSX.Element {
 			bookAuthor || 'Unknown Author',
 			bookCover || '/images/book.jpg'
 		)
-		redirect(`/dashboard/library/${transactionId}`)
+		router.push(`/dashboard/library/${transactionId}`)
 	}
 
 	return (
@@ -138,21 +135,26 @@ export default function LibraryPage(): JSX.Element {
 										size="icon"
 										variant="ghost"
 										className={cn(
-											"h-8 w-8 bg-background/70 backdrop-blur-sm hover:bg-background/90 transition-colors",
-											book.favorite && "text-yellow-400"
+											'h-8 w-8 bg-background/70 backdrop-blur-sm hover:bg-background/90 transition-colors',
+											book.favorite && 'text-yellow-400'
 										)}
-										onClick={(e) => {
+										onClick={e => {
 											e.stopPropagation()
 											handleFavorite(book.bookId)
 										}}
 									>
-										<Star className={cn("w-5 h-5", book.favorite && "fill-current")} />
+										<Star
+											className={cn(
+												'w-5 h-5',
+												book.favorite && 'fill-current'
+											)}
+										/>
 									</Button>
 									<Button
 										size="icon"
 										variant="ghost"
 										className="h-8 w-8 bg-background/70 backdrop-blur-sm hover:bg-background/90 hover:text-destructive transition-colors"
-										onClick={(e) => {
+										onClick={e => {
 											e.stopPropagation()
 											handleRemove(book.bookId)
 										}}
@@ -160,7 +162,7 @@ export default function LibraryPage(): JSX.Element {
 										<Trash2 className="w-5 h-5" />
 									</Button>
 								</div>
-								<div 
+								<div
 									className="relative w-full aspect-[2/3] mb-2 overflow-hidden rounded-md shadow-md transition-all duration-300 group-hover:shadow-lg"
 									onClick={() =>
 										handleLibraryBook(
@@ -195,7 +197,7 @@ export default function LibraryPage(): JSX.Element {
 									{book.bookAuthor}
 								</p>
 							</div>
-					))}
+						))}
 			</div>
 
 			{sortedBooks.length === 0 && !isLoading && (

@@ -4,7 +4,7 @@ import { auth } from '@clerk/nextjs/server'
 
 export async function GET(
 	request: Request,
-	{ params }: { params: { transactionId: string } }
+	{ params }: { params: Promise<{ transactionId: string }> }
 ) {
 	try {
 		const { userId } = await auth()
@@ -16,8 +16,8 @@ export async function GET(
 			)
 		}
 
-		const transactionId = params.transactionId
-		
+		const { transactionId } = await params
+
 		const transaction = await prisma.transactions.findFirst({
 			where: {
 				id: transactionId,

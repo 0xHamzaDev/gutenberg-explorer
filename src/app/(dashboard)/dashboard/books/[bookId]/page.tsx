@@ -66,11 +66,8 @@ const fetcher = async (url: string) => {
 	return response.json()
 }
 
-export function GutenbergBookOverview({ bookId }: { bookId: number }) {
+function GutenbergBookOverview({ bookId }: { bookId: number }) {
 	const [buttonLoading, setButtonLoading] = useState(false)
-	const [libraryStatusKey, setLibraryStatusKey] = useState(
-		`library-status-${bookId}-0`
-	)
 	const MAX_SUBJECTS_DISPLAYED = 5
 
 	const {
@@ -82,7 +79,7 @@ export function GutenbergBookOverview({ bookId }: { bookId: number }) {
 	})
 
 	const { data: inLibrary = false, mutate: refreshLibraryStatus } = useSWR(
-		libraryStatusKey,
+		`library-status-${bookId}`,
 		async () => {
 			try {
 				const status = await isBookInLibrary(bookId)
@@ -92,11 +89,7 @@ export function GutenbergBookOverview({ bookId }: { bookId: number }) {
 			}
 		},
 		{
-			revalidateOnFocus: true,
-			dedupingInterval: 0,
-			revalidateIfStale: true,
-			revalidateOnMount: true,
-			refreshInterval: 10 * 1000,
+			revalidateOnFocus: false,
 			errorRetryCount: 3
 		}
 	)
@@ -146,8 +139,6 @@ export function GutenbergBookOverview({ bookId }: { bookId: number }) {
 					}
 				}
 			}
-
-			setLibraryStatusKey(`library-status-${bookId}-${Date.now()}`)
 		} catch (error) {
 			toast.error('An unexpected error occurred', {
 				duration: 3000,

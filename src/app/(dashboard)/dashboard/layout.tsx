@@ -23,9 +23,11 @@ export default async function Layout({
 }) {
 	const { userId } = await auth()
 	if (userId) {
-		pollUser({
-			clerkId: userId
-		})
+		try {
+			await pollUser({ clerkId: userId })
+		} catch (error) {
+			console.error('pollUser failed:', error)
+		}
 	}
 	return (
 		<SidebarProvider>

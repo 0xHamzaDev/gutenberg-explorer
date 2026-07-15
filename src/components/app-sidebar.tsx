@@ -136,7 +136,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 													? user?.imageUrl
 													: undefined
 											}
-											alt={user?.firstName}
+											alt={user?.firstName ?? undefined}
 										/>
 										<AvatarFallback className="rounded-lg">
 											CN
@@ -171,7 +171,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 														? user?.imageUrl
 														: undefined
 												}
-												alt={user?.firstName}
+												alt={user?.firstName ?? undefined}
 											/>
 											<AvatarFallback className="rounded-lg">
 												CN

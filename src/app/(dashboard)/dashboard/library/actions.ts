@@ -61,19 +61,21 @@ export async function getBookTransaction(
 	return transaction.id
 }
 
-export const getBookTransactionDataById = unstable_cache(
-	async (id: string) => {
-		const transaction = await prisma.transactions.findUnique({
-			where: {
-				id: id
-			}
+const getBookTransactionDataByIdCached = unstable_cache(
+	async (id: string, userId: string) => {
+		return prisma.transactions.findFirst({
+			where: { id, userId }
 		})
-
-		return transaction
 	},
 	['transaction-by-id'],
 	{ revalidate: 60 }
 )
+
+export async function getBookTransactionDataById(id: string) {
+	const { userId } = await auth()
+	if (!userId) return null
+	return getBookTransactionDataByIdCached(id, userId)
+}
 
 export interface LibraryBook {
 	id: string
@@ -128,7 +130,6 @@ export async function getUserLibrary() {
 }
 
 const MAX_SUMMARY_LENGTH = 10000
-const RATE_LIMIT_DELAY = 1000
 
 function truncateContent(content: string, maxLength: number): string {
 	return content.slice(0, maxLength)
@@ -137,6 +138,9 @@ function truncateContent(content: string, maxLength: number): string {
 export const summarizeContent = async (
 	bookContent: string
 ): Promise<string> => {
+	const { userId } = await auth()
+	if (!userId) throw new Error('Unauthorized')
+
 	const truncatedContent = truncateContent(bookContent, MAX_SUMMARY_LENGTH)
 	const summaryPrompt = `Summarize in 3-4 sentences max: ${truncatedContent}`
 
@@ -144,7 +148,11 @@ export const summarizeContent = async (
 		const response = await createChatCompletion({
 			model: 'Meta-Llama-3.3-70B-Instruct',
 			messages: [
-				{ role: 'system', content: 'You are a concise book summarizer. Keep responses under 100 words.' },
+				{
+					role: 'system',
+					content:
+						'You are a concise book summarizer. Keep responses under 100 words.'
+				},
 				{ role: 'user', content: summaryPrompt }
 			],
 			temperature: 0.3,
@@ -168,6 +176,9 @@ export const summarizeContent = async (
 }
 
 export const getBookContent = async (bookId: string): Promise<string> => {
+	const { userId } = await auth()
+	if (!userId) return ''
+
 	try {
 		const response = await fetch(
 			`https://www.gutenberg.org/files/${bookId}/${bookId}-0.txt`
@@ -193,6 +204,9 @@ export const getAIResponse = async (
 	userMessage: string,
 	bookContent: string
 ): Promise<string> => {
+	const { userId } = await auth()
+	if (!userId) throw new Error('Unauthorized')
+
 	try {
 		const prompt = `Book: ${truncateContent(bookContent, 3000)}
 
@@ -203,7 +217,11 @@ Answer briefly (max 150 words):`
 		const response = await createChatCompletion({
 			model: 'Meta-Llama-3.3-70B-Instruct',
 			messages: [
-				{ role: 'system', content: 'You are a book analysis assistant. Keep responses under 150 words. Answer with the minimum information required. Do not explain reasoning unless explicitly asked. Do not add examples, background, author references, or interpretations. Respond in one or two sentences when possible.' },
+				{
+					role: 'system',
+					content:
+						'You are a book analysis assistant. Keep responses under 150 words. Answer with the minimum information required. Do not explain reasoning unless explicitly asked. Do not add examples, background, author references, or interpretations. Respond in one or two sentences when possible.'
+				},
 				{ role: 'user', content: prompt }
 			],
 			temperature: 0.5,
@@ -218,22 +236,25 @@ Answer briefly (max 150 words):`
 		console.error('AI Response Error:', error)
 
 		if (error?.message?.includes('not configured')) {
-			return "⚠️ **AI Chat is Disabled**\n\nTo enable AI chat features, please:\n1. Get your API key from https://cloud.sambanova.ai/apis\n2. Add it to your `.env.local` file as `OPENAI_API_KEY=your-key-here`\n3. Restart the development server"
+			return '⚠️ **AI Chat is Disabled**\n\nTo enable AI chat features, please:\n1. Get your API key from https://cloud.sambanova.ai/apis\n2. Add it to your `.env.local` file as `OPENAI_API_KEY=your-key-here`\n3. Restart the development server'
 		}
 
 		if (error?.message?.includes('authentication failed')) {
-			return "⚠️ **Authentication Failed**\n\nPlease complete the onboarding process at https://cloud.sambanova.ai/apis to use AI features."
+			return '⚠️ **Authentication Failed**\n\nPlease complete the onboarding process at https://cloud.sambanova.ai/apis to use AI features.'
 		}
 
 		if (error?.message?.includes('Invalid')) {
-			return "⚠️ **Invalid API Key**\n\nYour SambaNova API key appears to be invalid or expired. Please check your configuration at https://cloud.sambanova.ai/apis"
+			return '⚠️ **Invalid API Key**\n\nYour SambaNova API key appears to be invalid or expired. Please check your configuration at https://cloud.sambanova.ai/apis'
 		}
 
 		return "I'm sorry, I couldn't analyze this book content at the moment. Please try again later."
 	}
 }
 
-export async function toggleBookFavorite(bookId: string, currentFavoriteState: boolean): Promise<boolean> {
+export async function toggleBookFavorite(
+	bookId: string,
+	currentFavoriteState: boolean
+): Promise<boolean> {
 	try {
 		const { userId } = await auth()
 		if (!userId) {

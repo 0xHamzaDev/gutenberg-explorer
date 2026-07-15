@@ -94,7 +94,6 @@ export async function saveMessagesToTransaction(
 			})
 		)
 
-
 		await prisma.transactions.update({
 			where: {
 				id: transactionId
@@ -157,8 +156,6 @@ export const getTransactionMessagesCached = unstable_cache(
 					}
 				}
 			})
-
-			
 
 			return parsedMessages
 		} catch (error) {

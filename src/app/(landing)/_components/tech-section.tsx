@@ -19,7 +19,7 @@ const techStack = [
 	}
 ]
 
-export function TechSection(): JSX.Element {
+export function TechSection() {
 	return (
 		<section
 			id="tech-section"

@@ -204,7 +204,7 @@ function InvalidChatPage() {
 	)
 }
 
-export default function ChatPage(): JSX.Element {
+export default function ChatPage() {
 	const [messages, setMessages] = useState<Message[]>([])
 	const [input, setInput] = useState('')
 	const [bookContent, setBookContent] = useState<string>('')
@@ -310,7 +310,8 @@ export default function ChatPage(): JSX.Element {
 			if (!contentToUse) {
 				const findBookContent = await getBookContent(bookData.bookId)
 				if (findBookContent) {
-					const summarizedContent = await summarizeContent(findBookContent)
+					const summarizedContent =
+						await summarizeContent(findBookContent)
 					setBookContent(summarizedContent)
 					contentToUse = summarizedContent
 				}
@@ -362,7 +363,6 @@ export default function ChatPage(): JSX.Element {
 
 	return (
 		<div className="container mx-auto py-1 px-4 md:px-6 h-[calc(100vh-4rem)] max-h-screen flex flex-col">
-
 			<div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4 h-full overflow-hidden flex-grow">
 				<div className="order-2 lg:order-1 h-full flex max-h-[calc(100vh-6rem)]">
 					<Card className="shadow-sm w-full flex flex-col overflow-hidden">

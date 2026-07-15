@@ -13,9 +13,6 @@ const nextConfig: NextConfig = {
 		minimumCacheTTL: 60 * 60 * 24 * 7, // 7 days
 		formats: ['image/webp']
 	},
-	typescript: {
-		ignoreBuildErrors: true
-	},
 	// Performance optimizations
 	experimental: {
 		// Use server actions directly for better performance

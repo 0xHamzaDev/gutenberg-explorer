@@ -42,7 +42,7 @@ function useDebounce<T>(value: T, delay: number): T {
 	return debouncedValue
 }
 
-export default function BooksPage(): JSX.Element {
+export default function BooksPage() {
 	const [searchQuery, setSearchQuery] = useState<string>('')
 	const [isSearchVisible, setIsSearchVisible] = useState<boolean>(false)
 	const [currentPage, setCurrentPage] = useState<number>(1)

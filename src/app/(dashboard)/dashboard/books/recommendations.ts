@@ -10,122 +10,13 @@ import {
 	type NormalizedBook
 } from '@/lib/gutenberg'
 import { getUserLibraryData } from '@/app/(dashboard)/dashboard/library/actions'
-
-export interface RecommendedBook {
-	id: number
-	title: string
-	author: string
-	coverUrl: string
-	score: number
-	reason: string
-}
-
-const STOPWORDS = new Set([
-	'fiction',
-	'the',
-	'of',
-	'and',
-	'a',
-	'in',
-	'to',
-	'for',
-	'stories',
-	'literature'
-])
-
-// "England -- Fiction" -> ["england"]; drops generic tokens so overlap is meaningful.
-function subjectTokens(subjects: string[]): Set<string> {
-	const tokens = new Set<string>()
-	for (const subject of subjects) {
-		for (const part of subject.split(/--|,/)) {
-			const token = part.trim().toLowerCase()
-			if (token.length > 2 && !STOPWORDS.has(token)) {
-				tokens.add(token)
-			}
-		}
-	}
-	return tokens
-}
-
-// Gutendex lists many editions/translations of the same work under different
-// ids. Collapse them so a recommendation row shows distinct titles, not the same
-// book four times.
-function titleKey(title: string, author: string): string {
-	return `${title.trim().toLowerCase()}::${author.trim().toLowerCase()}`
-}
-
-interface RankOptions {
-	// Keep only books sharing a language with the seed (defaults to English).
-	// Prevents foreign-language translations dominating the list.
-	preferredLanguages?: Set<string>
-	// Normalized "title::author" keys to drop (e.g. the source book's own editions).
-	excludeTitleKeys?: Set<string>
-}
-
-function scoreAndRank(
-	candidates: NormalizedBook[],
-	seedTokens: Set<string>,
-	seedAuthors: Set<string>,
-	excludeIds: Set<number>,
-	options: RankOptions = {}
-): RecommendedBook[] {
-	const { preferredLanguages, excludeTitleKeys } = options
-	// Dedupe by work (title+author), keeping the highest-scoring edition.
-	const byTitle = new Map<string, RecommendedBook>()
-
-	for (const book of candidates) {
-		if (excludeIds.has(book.id)) continue
-		if (!book.coverUrl) continue
-
-		if (
-			preferredLanguages &&
-			preferredLanguages.size > 0 &&
-			book.languages.length > 0 &&
-			!book.languages.some(l => preferredLanguages.has(l))
-		) {
-			continue
-		}
-
-		const author = book.author || 'Unknown Author'
-		const key = titleKey(book.title, author)
-		if (excludeTitleKeys?.has(key)) continue
-
-		const tokens = subjectTokens(book.subjects)
-		let shared = 0
-		for (const token of tokens) {
-			if (seedTokens.has(token)) shared++
-		}
-
-		const sameAuthor = seedAuthors.has(author.toLowerCase())
-
-		const score =
-			shared * 2 +
-			(sameAuthor ? 4 : 0) +
-			Math.min(book.downloadCount / 50000, 1)
-
-		if (score <= 0) continue
-
-		const reason = sameAuthor
-			? `More by ${author}`
-			: shared > 0
-				? 'Similar themes'
-				: 'Popular pick'
-
-		const existing = byTitle.get(key)
-		if (existing && existing.score >= score) continue
-
-		byTitle.set(key, {
-			id: book.id,
-			title: book.title,
-			author,
-			coverUrl: book.coverUrl,
-			score: Math.round(score * 100) / 100,
-			reason
-		})
-	}
-
-	return Array.from(byTitle.values()).sort((a, b) => b.score - a.score)
-}
+import {
+	scoreAndRank,
+	subjectTokens,
+	titleKey,
+	type RecommendedBook
+} from '@/lib/recommendation-utils'
+export type { RecommendedBook } from '@/lib/recommendation-utils'
 
 // Popular fallback: DB cache first (instant), then a browse fetch if the cache
 // is still cold. Never throws, never hangs.

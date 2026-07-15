@@ -2,108 +2,153 @@
 
 ## Overview
 
-**Gutenberg Explorer** is a web application that allows users to explore, download, and analyze free e-books from Project Gutenberg. The platform provides users with an easy way to access thousands of public domain books and analyze them using AI-driven features, such as character identification, language detection, sentiment analysis, and plot summaries.
+**Gutenberg Explorer** is a web app for discovering free public-domain books from
+[Project Gutenberg](https://www.gutenberg.org/), with an AI assistant you can chat
+with about any book. Browse thousands of titles, save them to a personal library,
+get recommendations based on your taste, and ask an AI for plot summaries,
+unusual-word explanations, language detection, and more.
 
-**Gutenberg AI** powers the analysis features, allowing users to interact with books in a more meaningful way, gaining insights and summaries on their reading material.
+Book metadata comes from the [Gutendex](https://gutendex.com/) API and is cached in
+PostgreSQL, so the catalog stays fast and keeps working even when the upstream API
+is slow or unavailable.
 
 ---
 
 ## Features
 
-- **Explore Books**: Browse through Project Gutenberg’s collection of e-books.
-- **Download Books**: Download e-books to read offline in various formats.
-- **Personal Library**: Save and manage your favorite books in your personalized library.
-- **Text Analysis**: Analyze book content with features such as:
-    - **Character Identification**: Detect key characters in the story.
-    - **Language Detection**: Identify the language of the text.
-    - **Sentiment Analysis**: Gauge the sentiment of the text (positive, neutral, or negative).
-    - **Plot Summaries**: Get automatic summaries of books’ plots.
+- **Browse & search** Project Gutenberg's catalog, backed by a Postgres cache for
+  speed and resilience (serves cached results when Gutendex is down).
+- **Personal library** — save books, mark favorites, and resume past conversations.
+- **AI book chat** — ask questions about any book. Built-in conversation starters
+  cover plot summaries, unusual words, and language detection. Powered by SambaNova
+  (Llama 3.3 70B) through the OpenAI-compatible SDK, with per-user rate limiting.
+- **Recommendations** — personalized picks from your library's subjects and authors,
+  plus "similar books" on every book page.
+- **Reading stats** — an activity calendar and reading insights on your dashboard.
 
 ---
 
 ## Tech Stack
 
-- **Frontend**: Next.js, TailwindCSS, Shadcn UI
-- **Backend**: Next.js, Zod for schema validation
-- **AI**: Open AI for AI-driven features (text analysis, summarization)
-- **Database**: Prisma PostgreSQL (for storing book metadata and user preferences)
-- **Deployment**: Vercel, Docker
+- **Framework:** Next.js 15 (App Router) · React 19
+- **Language:** TypeScript
+- **Styling:** TailwindCSS · shadcn/ui
+- **Auth:** Clerk
+- **Database:** PostgreSQL (Neon) via Prisma
+- **AI:** SambaNova (OpenAI-compatible SDK) — Llama 3.3 70B
+- **Book data:** Project Gutenberg via the Gutendex API, cached in Postgres
+- **Client data:** SWR · **Validation:** Zod
+- **Testing:** Vitest · **CI:** GitHub Actions
+- **Deployment:** Vercel
 
 ---
 
-## Installation
-
-To get started with the development version of Gutenberg Explorer, clone the repository and follow the installation instructions:
+## Getting started
 
 ### Prerequisites
 
-- Node.js
-- npm or yarn
-- Docker (for containerized environments)
+- Node.js 20+ (22 recommended)
+- [pnpm](https://pnpm.io/)
+- A PostgreSQL database — hosted (e.g. [Neon](https://neon.tech/)) or local via
+  Docker (`./start-database.sh`)
+- A [Clerk](https://clerk.com/) application (authentication)
+- A [SambaNova](https://cloud.sambanova.ai/apis) API key (AI features)
 
-### Steps
+### Setup
 
-1. Clone the repository:
+1. Clone and install:
 
-    ```bash
-    git clone https://github.com/0xHamzaDev/gutenberg-explorer.git
-    cd gutenberg-explorer
-    ```
+   ```bash
+   git clone https://github.com/0xHamzaDev/gutenberg-explorer.git
+   cd gutenberg-explorer
+   pnpm install
+   ```
 
-2. Install dependencies:
+2. Create a `.env` file in the project root:
 
-    ```bash
-    npm install
-    ```
+   ```env
+   # Database (PostgreSQL)
+   DATABASE_URL="postgresql://user:password@host:5432/dbname"
 
-3. Set up environment variables by creating a `.env` file in the root directory and adding the necessary values (for API keys, database configuration, etc.).
+   # Clerk authentication
+   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="pk_..."
+   CLERK_SECRET_KEY="sk_..."
 
-    Here’s an example of the `.env` file:
+   # Base URL of the app
+   NEXT_PUBLIC_BASE_URL="http://localhost:3000"
 
-    ```env
-    # Database URL
-    DATABASE_URL="your-database-url-here"
+   # SambaNova API key (used through the OpenAI-compatible SDK)
+   OPENAI_API_KEY="your-sambanova-api-key"
+   ```
 
-    # Authentication keys
-    NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="your-clerk-publishable-key-here"
-    CLERK_SECRET_KEY="your-clerk-secret-key-here"
-    NEXT_PUBLIC_BASE_URL="your-base-url-here"
+   To run Postgres locally instead of a hosted DB, set `DATABASE_URL` to a local
+   URL and run `./start-database.sh` (requires Docker).
 
-    # SambaNova AI API Key (using OpenAI SDK compatible endpoint)
-    OPENAI_API_KEY="your-sambanova-api-key-here"
-    ```
+3. Apply the database schema:
 
-4. Run the development server:
+   ```bash
+   pnpm db:push
+   ```
 
-    ```bash
-    npm run dev
-    ```
+4. (Optional) Warm the Gutenberg cache with popular books:
 
-5. Open your browser and navigate to `http://localhost:3000` to view the application.
+   ```bash
+   node --env-file=.env scripts/prewarm-gutenberg-cache.mjs
+   ```
+
+5. Start the dev server:
+
+   ```bash
+   pnpm dev
+   ```
+
+   Open [http://localhost:3000](http://localhost:3000).
+
+---
+
+## Scripts
+
+| Command | Description |
+|---|---|
+| `pnpm dev` | Start the dev server (Turbopack) |
+| `pnpm build` | Production build (type-checked) |
+| `pnpm start` | Run the production build |
+| `pnpm test` | Run unit tests (Vitest) |
+| `pnpm typecheck` | Type-check with `tsc --noEmit` |
+| `pnpm lint` | Lint with ESLint |
+| `pnpm db:push` | Push the Prisma schema to the database |
+| `pnpm db:studio` | Open Prisma Studio |
+
+CI (GitHub Actions, `.github/workflows/ci.yml`) runs typecheck and tests on every
+push and pull request to `main`.
 
 ---
 
 ## Usage
 
-- **Explore Books**: You can search for books by title, author, or genre. The platform will provide you with a list of available books to explore.
-- **Analyze Text**: Once you've selected a book, you can analyze its content for sentiment, characters, and plot summaries using the AI-driven features.
+- **Explore:** search by title or author, then open any book to see its details.
+- **Library:** add books to your library and favorite the ones you love.
+- **Chat:** open a book conversation and ask the AI about it, or tap a starter
+  prompt (plot summary, unusual words, language).
+- **Discover:** browse the recommendations on your dashboard and the "similar
+  books" on each book page.
 
 ---
 
 ## Contributing
 
-We welcome contributions! If you'd like to improve the project, follow these steps:
+Contributions are welcome:
 
 1. Fork the repository.
-2. Create a new branch (`git checkout -b feature-name`).
-3. Make your changes and commit them (`git commit -am 'Add new feature'`).
-4. Push to your branch (`git push origin feature-name`).
-5. Create a new pull request.
+2. Create a branch (`git checkout -b feature-name`).
+3. Make your changes and commit them.
+4. Push to your branch and open a pull request.
+
+Before opening a PR, make sure `pnpm typecheck` and `pnpm test` pass.
 
 ---
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file
+for details.

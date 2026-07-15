@@ -7,7 +7,6 @@ import { cn } from '@/lib/utils'
 import {
 	NavigationMenu,
 	NavigationMenuItem,
-	NavigationMenuLink,
 	NavigationMenuList,
 	navigationMenuTriggerStyle
 } from '@/components/ui/navigation-menu'
@@ -33,15 +32,14 @@ export function Navigation() {
 			<NavigationMenuList>
 				{navItems.map(item => (
 					<NavigationMenuItem key={item.title} asChild>
-						<Link href={item.href} legacyBehavior passHref>
-							<NavigationMenuLink
-								className={cn(
-									navigationMenuTriggerStyle(),
-									'bg-transparent'
-								)}
-							>
-								{item.title}
-							</NavigationMenuLink>
+						<Link
+							href={item.href}
+							className={cn(
+								navigationMenuTriggerStyle(),
+								'bg-transparent'
+							)}
+						>
+							{item.title}
 						</Link>
 					</NavigationMenuItem>
 				))}

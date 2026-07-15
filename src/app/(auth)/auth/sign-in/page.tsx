@@ -33,46 +33,60 @@ export default function HalfSidedGlassMorphismAuthentication() {
 				redirectUrlComplete: '/dashboard'
 			})
 		} catch (error) {
-			console.log(error)
+			if (isClerkAPIResponseError(error)) {
+				for (const e of error.errors) toast.error(e.longMessage)
+			} else {
+				toast.error('Sign-in failed. Please try again.')
+			}
+			console.error(error)
 		}
 	}
 
 	async function handleSignIn(strategy: OAuthStrategy) {
 		if (!signIn || !signUp) return null
 
-		const userExistsButNeedsToSignIn =
-			signUp.verifications.externalAccount.status === 'transferable' &&
-			signUp.verifications.externalAccount.error?.code ===
-				'external_account_exists'
+		try {
+			const userExistsButNeedsToSignIn =
+				signUp.verifications.externalAccount.status === 'transferable' &&
+				signUp.verifications.externalAccount.error?.code ===
+					'external_account_exists'
 
-		if (userExistsButNeedsToSignIn) {
-			const res = await signIn.create({ transfer: true })
+			if (userExistsButNeedsToSignIn) {
+				const res = await signIn.create({ transfer: true })
 
-			if (res.status === 'complete') {
-				setActive({
-					session: res.createdSessionId
-				})
-			}
-		}
-
-		const userNeedsToBeCreated =
-			signIn.firstFactorVerification.status === 'transferable'
-
-		if (userNeedsToBeCreated) {
-			const res = await signUp.create({
-				transfer: true
-			})
-
-			if (res.status === 'complete') {
-				if (!res.createdUserId) {
-					throw new Error('User has no email address')
+				if (res.status === 'complete') {
+					setActive({
+						session: res.createdSessionId
+					})
 				}
-				setActive({
-					session: res.createdSessionId
-				})
 			}
-		} else {
-			signInWith(strategy)
+
+			const userNeedsToBeCreated =
+				signIn.firstFactorVerification.status === 'transferable'
+
+			if (userNeedsToBeCreated) {
+				const res = await signUp.create({
+					transfer: true
+				})
+
+				if (res.status === 'complete') {
+					if (!res.createdUserId) {
+						throw new Error('User has no email address')
+					}
+					setActive({
+						session: res.createdSessionId
+					})
+				}
+			} else {
+				signInWith(strategy)
+			}
+		} catch (error) {
+			if (isClerkAPIResponseError(error)) {
+				for (const e of error.errors) toast.error(e.longMessage)
+			} else {
+				toast.error('Sign-in failed. Please try again.')
+			}
+			console.error(error)
 		}
 	}
 
@@ -201,15 +215,9 @@ export default function HalfSidedGlassMorphismAuthentication() {
 								</Button>
 							</div>
 						</div>
-						<div className="mt-6 flex justify-between">
-							<a
-								className="flex text-center font-medium text-gray-400 text-sm"
-								href="/forms/signup"
-							>
-								Forgot your password?
-							</a>
+						<div className="mt-6 flex justify-end">
 							<Link
-								className="ml-auto text-primary hover:text-black"
+								className="text-primary hover:text-black"
 								href="/auth/sign-up"
 							>
 								Sign up now

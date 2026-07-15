@@ -66,6 +66,13 @@ model GutenbergBook {
     @@index([title])
 }
 
+model AiRateLimit {
+    userId      String   @id
+    windowStart DateTime @default(now())
+    count       Int      @default(0)
+    updatedAt   DateTime @updatedAt
+}
+
 model Transactions {
     id        String  @id @default(uuid())
     user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)

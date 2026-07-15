@@ -3,6 +3,7 @@
 import { auth } from '@clerk/nextjs/server'
 import prisma from '@/lib/db'
 import { createChatCompletion } from '@/lib/ai'
+import { checkAiRateLimit } from '@/lib/rate-limit'
 import { unstable_cache } from 'next/cache'
 import { revalidatePath, revalidateTag } from 'next/cache'
 
@@ -141,6 +142,11 @@ export const summarizeContent = async (
 	const { userId } = await auth()
 	if (!userId) throw new Error('Unauthorized')
 
+	const { allowed } = await checkAiRateLimit(userId)
+	if (!allowed) {
+		return truncateContent(bookContent, MAX_SUMMARY_LENGTH).slice(0, 1000)
+	}
+
 	const truncatedContent = truncateContent(bookContent, MAX_SUMMARY_LENGTH)
 	const summaryPrompt = `Summarize in 3-4 sentences max: ${truncatedContent}`
 
@@ -206,6 +212,11 @@ export const getAIResponse = async (
 ): Promise<string> => {
 	const { userId } = await auth()
 	if (!userId) throw new Error('Unauthorized')
+
+	const { allowed } = await checkAiRateLimit(userId)
+	if (!allowed) {
+		return "⏳ You've reached the hourly limit for AI requests. Please try again later."
+	}
 
 	try {
 		const prompt = `Book: ${truncateContent(bookContent, 3000)}

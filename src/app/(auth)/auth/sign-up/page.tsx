@@ -1,7 +1,7 @@
 'use client'
-import { useClerk, useSignUp, useUser } from '@clerk/nextjs'
+import { useSignUp } from '@clerk/nextjs'
 import type { SVGProps } from 'react'
-import { motion, px } from 'framer-motion'
+import { motion } from 'framer-motion'
 import React from 'react'
 import { useRouter } from 'next/navigation'
 import { OAuthStrategy } from '@clerk/types'
@@ -35,7 +35,12 @@ export default function SignUp() {
 				redirectUrlComplete: '/dashboard'
 			})
 		} catch (error) {
-			console.log(error)
+			if (isClerkAPIResponseError(error)) {
+				for (const e of error.errors) toast.error(e.longMessage)
+			} else {
+				toast.error('Sign-up failed. Please try again.')
+			}
+			console.error(error)
 		}
 	}
 
@@ -212,15 +217,9 @@ export default function SignUp() {
 								</Button>
 							</div>
 						</div>
-						<div className="mt-6 flex justify-between">
+						<div className="mt-6 flex justify-end">
 							<Link
-								className="flex text-center font-medium text-gray-400 text-sm"
-								href="/forget-password"
-							>
-								Forgot your password?
-							</Link>
-							<Link
-								className="ml-auto text-primary hover:text-black"
+								className="text-primary hover:text-black"
 								href="sign-in"
 							>
 								Sign In

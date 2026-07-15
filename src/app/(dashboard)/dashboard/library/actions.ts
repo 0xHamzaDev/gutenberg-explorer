@@ -152,7 +152,7 @@ export const summarizeContent = async (
 
 	try {
 		const response = await createChatCompletion({
-			model: 'Meta-Llama-3.3-70B-Instruct',
+			model: 'qwen/qwen3-32b',
 			messages: [
 				{
 					role: 'system',
@@ -172,10 +172,10 @@ export const summarizeContent = async (
 	} catch (error: any) {
 		console.error('Summary Error:', error)
 		if (error?.message?.includes('not configured')) {
-			return '⚠️ AI summarization is disabled. Please configure your SambaNova API key in .env.local to enable this feature.'
+			return '⚠️ AI summarization is disabled. Please configure your Groq API key (GROQ_API_KEY) to enable this feature.'
 		}
 		if (error?.message?.includes('authentication failed')) {
-			return '⚠️ AI authentication failed. Please complete onboarding at https://cloud.sambanova.ai/apis'
+			return '⚠️ AI authentication failed. Please check your API key at https://console.groq.com/keys'
 		}
 		return truncatedContent.slice(0, 1000)
 	}
@@ -226,7 +226,7 @@ Question: ${userMessage}
 Answer briefly (max 150 words):`
 
 		const response = await createChatCompletion({
-			model: 'Meta-Llama-3.3-70B-Instruct',
+			model: 'qwen/qwen3-32b',
 			messages: [
 				{
 					role: 'system',
@@ -247,15 +247,15 @@ Answer briefly (max 150 words):`
 		console.error('AI Response Error:', error)
 
 		if (error?.message?.includes('not configured')) {
-			return '⚠️ **AI Chat is Disabled**\n\nTo enable AI chat features, please:\n1. Get your API key from https://cloud.sambanova.ai/apis\n2. Add it to your `.env.local` file as `OPENAI_API_KEY=your-key-here`\n3. Restart the development server'
+			return '⚠️ **AI Chat is Disabled**\n\nTo enable AI chat features, please:\n1. Get your API key from https://console.groq.com/keys\n2. Add it to your `.env` file as `GROQ_API_KEY=your-key-here`\n3. Restart the development server'
 		}
 
 		if (error?.message?.includes('authentication failed')) {
-			return '⚠️ **Authentication Failed**\n\nPlease complete the onboarding process at https://cloud.sambanova.ai/apis to use AI features.'
+			return '⚠️ **Authentication Failed**\n\nPlease check your Groq API key at https://console.groq.com/keys to use AI features.'
 		}
 
 		if (error?.message?.includes('Invalid')) {
-			return '⚠️ **Invalid API Key**\n\nYour SambaNova API key appears to be invalid or expired. Please check your configuration at https://cloud.sambanova.ai/apis'
+			return '⚠️ **Invalid API Key**\n\nYour Groq API key appears to be invalid or expired. Please check your configuration at https://console.groq.com/keys'
 		}
 
 		return "I'm sorry, I couldn't analyze this book content at the moment. Please try again later."

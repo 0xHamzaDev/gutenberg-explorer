@@ -1,23 +1,21 @@
 'use server'
 import OpenAI from 'openai'
 
-const API_KEY = process.env.OPENAI_API_KEY || ''
-const isApiKeyConfigured = !!process.env.OPENAI_API_KEY
+const API_KEY = process.env.GROQ_API_KEY || ''
+const isApiKeyConfigured = !!process.env.GROQ_API_KEY
 
 if (!isApiKeyConfigured) {
 	console.warn(
-		'⚠️  OPENAI_API_KEY is not configured. AI features will be disabled.'
+		'⚠️  GROQ_API_KEY is not configured. AI features will be disabled.'
 	)
-	console.warn(
-		'📝 To enable AI features, add your SambaNova API key to .env.local:'
-	)
-	console.warn('   OPENAI_API_KEY=your-sambanova-api-key-here')
-	console.warn('🔗 Get your API key at: https://cloud.sambanova.ai/apis')
+	console.warn('📝 To enable AI features, add your Groq API key to .env:')
+	console.warn('   GROQ_API_KEY=your-groq-api-key-here')
+	console.warn('🔗 Get your API key at: https://console.groq.com/keys')
 }
 
 const openai = new OpenAI({
 	apiKey: API_KEY || 'dummy-key',
-	baseURL: 'https://api.sambanova.ai/v1'
+	baseURL: 'https://api.groq.com/openai/v1'
 })
 
 interface ChatCompletionParams {
@@ -35,34 +33,39 @@ export async function createChatCompletion(
 ): Promise<OpenAI.Chat.Completions.ChatCompletion> {
 	if (!isApiKeyConfigured) {
 		throw new Error(
-			'AI service is not configured. Please add your SambaNova API key to the environment variables.'
+			'AI service is not configured. Please add your Groq API key to the environment variables.'
 		)
 	}
 
 	try {
+		// Qwen3 on Groq is a reasoning model. `reasoning_effort: 'none'` disables
+		// chain-of-thought so answers stay concise and fit the token budget
+		// (it is a Groq-specific field, hence the cast). `stream: false` selects
+		// the non-streaming overload so the result has `.choices`.
 		const response = await openai.chat.completions.create({
 			...params,
-			stream: false
-		})
+			stream: false,
+			reasoning_effort: 'none'
+		} as unknown as OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming)
 		return response
 	} catch (error: any) {
 		if (error?.status === 403) {
 			console.error(
-				'SambaNova Authentication Error: Please complete onboarding at https://cloud.sambanova.ai/apis'
+				'Groq Authentication Error: Please check your account at https://console.groq.com'
 			)
 			throw new Error(
-				'SambaNova API authentication failed. Please complete your account setup at https://cloud.sambanova.ai/apis'
+				'Groq API authentication failed. Please check your account setup at https://console.groq.com'
 			)
 		}
 
 		if (error?.status === 401) {
-			console.error('SambaNova API Key Error: Invalid or expired API key')
+			console.error('Groq API Key Error: Invalid or expired API key')
 			throw new Error(
-				'Invalid SambaNova API key. Please check your API key at https://cloud.sambanova.ai/apis'
+				'Invalid Groq API key. Please check your API key at https://console.groq.com/keys'
 			)
 		}
 
-		console.error('SambaNova API Error:', error)
+		console.error('Groq API Error:', error)
 		throw error
 	}
 }

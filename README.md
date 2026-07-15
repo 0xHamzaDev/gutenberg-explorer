@@ -20,8 +20,8 @@ is slow or unavailable.
   speed and resilience (serves cached results when Gutendex is down).
 - **Personal library** — save books, mark favorites, and resume past conversations.
 - **AI book chat** — ask questions about any book. Built-in conversation starters
-  cover plot summaries, unusual words, and language detection. Powered by SambaNova
-  (Llama 3.3 70B) through the OpenAI-compatible SDK, with per-user rate limiting.
+  cover plot summaries, unusual words, and language detection. Powered by Groq
+  (Qwen3 32B) through the OpenAI-compatible SDK, with per-user rate limiting.
 - **Recommendations** — personalized picks from your library's subjects and authors,
   plus "similar books" on every book page.
 - **Reading stats** — an activity calendar and reading insights on your dashboard.
@@ -35,7 +35,7 @@ is slow or unavailable.
 - **Styling:** TailwindCSS · shadcn/ui
 - **Auth:** Clerk
 - **Database:** PostgreSQL (Neon) via Prisma
-- **AI:** SambaNova (OpenAI-compatible SDK) — Llama 3.3 70B
+- **AI:** Groq (OpenAI-compatible SDK) — Qwen3 32B
 - **Book data:** Project Gutenberg via the Gutendex API, cached in Postgres
 - **Client data:** SWR · **Validation:** Zod
 - **Testing:** Vitest · **CI:** GitHub Actions
@@ -52,7 +52,7 @@ is slow or unavailable.
 - A PostgreSQL database — hosted (e.g. [Neon](https://neon.tech/)) or local via
   Docker (`./start-database.sh`)
 - A [Clerk](https://clerk.com/) application (authentication)
-- A [SambaNova](https://cloud.sambanova.ai/apis) API key (AI features)
+- A [Groq](https://console.groq.com/keys) API key (AI features)
 
 ### Setup
 
@@ -77,8 +77,8 @@ is slow or unavailable.
    # Base URL of the app
    NEXT_PUBLIC_BASE_URL="http://localhost:3000"
 
-   # SambaNova API key (used through the OpenAI-compatible SDK)
-   OPENAI_API_KEY="your-sambanova-api-key"
+   # Groq API key (used through the OpenAI-compatible SDK)
+   GROQ_API_KEY="your-groq-api-key"
    ```
 
    To run Postgres locally instead of a hosted DB, set `DATABASE_URL` to a local
